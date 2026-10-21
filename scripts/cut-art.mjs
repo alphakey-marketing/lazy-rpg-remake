@@ -66,14 +66,16 @@ function bbox(img, a = 8) {
 }
 
 // trim, square pad, resize, save webp
-async function save(img, name, size, pad = 0.04) {
+// feet=true → thing stand on bottom edge (monster, portrait)
+async function save(img, name, size, pad = 0.04, feet = false) {
   const b = bbox(img);
   if (!b) throw new Error("empty " + name);
   const t = crop(img, b.x0, b.y0, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1);
   const side = Math.ceil(Math.max(t.w, t.h) * (1 + pad * 2));
+  const low = feet ? Math.floor(side * 0.02) : Math.ceil((side - t.h) / 2);
   const sq = await sharp(t.data, { raw: { width: t.w, height: t.h, channels: 4 } })
     .extend({
-      top: Math.floor((side - t.h) / 2), bottom: Math.ceil((side - t.h) / 2),
+      top: side - t.h - low, bottom: low,
       left: Math.floor((side - t.w) / 2), right: Math.ceil((side - t.w) / 2),
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     })
@@ -114,7 +116,7 @@ function blobs(img, cut) {
 }
 
 // cut sheet by grid of cells; keep only blobs whose center in cell
-async function sheet(img, cols, rows, names, size, cut, box = { x: 0, y: 0, w: img.w, h: img.h }) {
+async function sheet(img, cols, rows, names, size, cut, box = { x: 0, y: 0, w: img.w, h: img.h }, out = (t, n) => save(t, n, size)) {
   const { lab, list } = blobs(img, cut);
   const cw = box.w / cols, ch = box.h / rows;
   for (let r = 0; r < rows; r++)
@@ -135,7 +137,7 @@ async function sheet(img, cols, rows, names, size, cut, box = { x: 0, y: 0, w: i
       for (let y = 0; y < t.h; y++)
         for (let x = 0; x < t.w; x++)
           if (!mine.has(lab[(y0 + y) * img.w + x0 + x])) t.data[(y * t.w + x) * 4 + 3] = 0;
-      await save(t, n, size);
+      await out(t, n);
     }
 }
 
@@ -152,7 +154,7 @@ await grid("round-1/03-system-icons.png", 6, 4, [
 
 await grid("round-1/05-utility-and-equipment-icons.png", 6, 4, [
   "i-book", "i-chat", "i-lock", "i-unlock", "i-helm", "i-ring",
-  "i-charm", "i-video", "i-speed", "i-vip", null, "i-gift",
+  "i-charm", "i-video", "i-speed", "i-vip", "i-noads", "i-gift",
   "i-chest", "i-up", "i-forge", "i-recycle", "i-trash", "i-search",
   "i-sound", "i-mute", "i-vibrate", "i-cloud", "i-alert", "i-check",
 ], 96);
@@ -192,5 +194,54 @@ await sharp(join(SRC, "round-3/01-tower-battle-background.png"))
   .resize(1200)
   .webp({ quality: 82 })
   .toFile(join(OUT, "bg-tower.webp"));
+
+// ---- characters: fixed window per body height B, feet anchor. same scale every pose.
+// out size: HERO_W x HERO_H, feet at (HERO_FX, HERO_FY) fraction. renderer use same numbers.
+const HB = 128; // body px in output
+const WIN = { left: 0.8, right: 1.5, up: 1.3, down: 0.06 };
+async function saveHero(t, name, B) {
+  // feet x = centroid of opaque px in bottom 8% of body
+  let sx = 0, n = 0;
+  for (let y = Math.max(0, Math.floor(t.h - 0.08 * B)); y < t.h; y++)
+    for (let x = 0; x < t.w; x++) if (t.data[(y * t.w + x) * 4 + 3] > 100) { sx += x; n++; }
+  const fx = n ? sx / n : t.w / 2, fy = t.h - 1;
+  const W = Math.round((WIN.left + WIN.right) * B), H = Math.round((WIN.up + WIN.down) * B);
+  const ox = Math.round(fx - WIN.left * B), oy = Math.round(fy - WIN.up * B);
+  const out = Buffer.alloc(W * H * 4);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const tx = x + ox, ty = y + oy;
+      if (tx < 0 || ty < 0 || tx >= t.w || ty >= t.h) continue;
+      t.data.copy(out, (y * W + x) * 4, (ty * t.w + tx) * 4, (ty * t.w + tx) * 4 + 4);
+    }
+  await sharp(out, { raw: { width: W, height: H, channels: 4 } })
+    .resize(Math.round((WIN.left + WIN.right) * HB), Math.round((WIN.up + WIN.down) * HB), { kernel: "lanczos3" })
+    .webp({ quality: 88, alphaQuality: 90 })
+    .toFile(join(OUT, name + ".webp"));
+}
+
+// job lineup: cream bg → flood away. two rows (4 + 3), label text below excluded by box.
+{
+  const img = await load("round-1/01-job-lineup.png");
+  floodBg(img);
+  const B = 335;
+  const both = async (t, n) => { await save(t, "job-" + n, 160, 0.04, true); await saveHero(t, "hero-" + n, B); };
+  await sheet(img, 4, 1, ["novice", "blade", "arcanist", "ranger"], 0, 100, { x: 0, y: 30, w: 1536, h: 440 }, both);
+  await sheet(img, 3, 1, ["paladin", "archmage", "sniper"], 0, 100, { x: 0, y: 530, w: 1536, h: 405 }, both);
+}
+
+// combat poses: 3 route x ready/cast/recover. labels excluded by box.
+{
+  const img = await load("round-2/02-combat-action-board.png");
+  floodBg(img);
+  const B = 250;
+  const rows = [["blade", 20, 285], ["arcanist", 330, 305], ["ranger", 670, 290]];
+  for (const [r, y, h] of rows)
+    await sheet(img, 3, 1, [`pose-${r}-ready`, `pose-${r}-cast`, `pose-${r}-recover`], 0, 100, { x: 0, y, w: 1536, h }, (t, n) => saveHero(t, n, B));
+}
+
+// first boss + 3 tower guard. transparent sheet, dark glow → high cut
+await sheet(await load("round-3/02-guardians-and-first-boss.png"), 2, 2,
+  ["boss-slime", "guard-1", "guard-2", "guard-3"], 0, 140, undefined, (t, n) => save(t, n, 256, 0.03, true));
 
 console.log("done");

@@ -5,6 +5,8 @@ import { sfx, buzz } from "../../services/feedback";
 import type { Item } from "../../core/types";
 import { RARITY_COLOR } from "../theme";
 import { art } from "../art";
+import { jobRoute } from "../../config/content";
+import { store } from "../store";
 
 // Cut art sprite. Missing → nothing (never broken img).
 export function Sprite({ name, size, className = "" }: { name: string; size?: number; className?: string }) {
@@ -45,7 +47,11 @@ export function Btn(props: {
 
 export type Cur = "gold" | "gem" | "stone" | "shard" | "charm";
 
+const CUR_ART: Record<Cur, string> = { gold: "i-gold", gem: "i-gem", stone: "i-refine", shard: "i-shard", charm: "i-charm" };
+
 export function CurIcon({ c, size = 18 }: { c: Cur; size?: number }) {
+  const pic = art(CUR_ART[c]);
+  if (pic) return <img className="cur-icon sprite" src={pic} alt="" draggable={false} style={{ width: size, height: size }} />;
   const s = size;
   switch (c) {
     case "gold":
@@ -96,7 +102,16 @@ export function Amount({ c, n, size }: { c: Cur; n: number; size?: number }) {
   );
 }
 
-export function SlotIcon({ slot, size = 34, color = "#e8ecf5" }: { slot: Slot; size?: number; color?: string }) {
+// weapon pic follow job route: blade sword, arcanist staff, ranger bow
+function slotArt(slot: Slot): string {
+  if (slot !== "weapon") return `i-${slot}`;
+  const r = jobRoute(store.state.job);
+  return r === "arcanist" ? "i-staff" : r === "ranger" ? "i-bow" : "i-sword";
+}
+
+export function SlotIcon({ slot, size = 34, color = "#e8ecf5", empty }: { slot: Slot; size?: number; color?: string; empty?: boolean }) {
+  const pic = art(slotArt(slot));
+  if (pic) return <img className={`slot-icon sprite ${empty ? "slot-empty" : ""}`} src={pic} alt="" draggable={false} style={{ width: size, height: size }} />;
   const st = { stroke: "#2a1f3d", strokeWidth: 2.5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
   return (
     <svg width={size} height={size} viewBox="0 0 32 32">
@@ -139,7 +154,7 @@ export function ItemCard({ item, onClick, selected, empty, slot, badge }: {
   if (!item) {
     return (
       <div className={`item-card empty ${selected ? "sel" : ""}`} onClick={onClick}>
-        {slot && <SlotIcon slot={slot} color="#5a5378" />}
+        {slot && <SlotIcon slot={slot} color="#5a5378" empty />}
         {empty && <span className="empty-label">空</span>}
       </div>
     );
@@ -157,7 +172,7 @@ export function ItemCard({ item, onClick, selected, empty, slot, badge }: {
       <SlotIcon slot={item.slot} color={col} />
       {item.refine > 0 && <span className="refine-tag">+{item.refine}</span>}
       <span className="ilvl">Lv{item.ilvl}</span>
-      {item.locked && <span className="lock">🔒</span>}
+      {item.locked && <span className="lock"><Sprite name="i-lock" className="ico" /></span>}
       {badge}
     </div>
   );

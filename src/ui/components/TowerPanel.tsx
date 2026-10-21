@@ -8,7 +8,7 @@ import { SKILL_NAME } from "../names";
 import { advanceTowerPresentation, createTowerPresentation } from "../towerPresentation";
 import { BattleRenderer } from "../render/BattleRenderer";
 import { store, useGame } from "../store";
-import { Amount, Bar, Btn, Sheet } from "./common";
+import { Amount, Bar, Btn, Sheet, Sprite } from "./common";
 import { toast } from "./Toasts";
 
 export function TowerPanel({ onClose }: { onClose: () => void }) {
@@ -92,7 +92,7 @@ export function TowerPanel({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="無盡塔" onClose={onClose} tall>
       <div className="tower-summary">
-        <span className="tower-icon">🗼</span>
+        <span className="tower-icon"><Sprite name="i-tower" /></span>
         <div><b>最高通關：{s.tower.highestFloor} 層</b><div>進度永久保留 · 轉生都唔會重置</div></div>
       </div>
       {!unlocked ? (
@@ -121,13 +121,13 @@ export function TowerPanel({ onClose }: { onClose: () => void }) {
                 {run.result === "won" && finisher && <span>{run.hits === 1 ? "一擊秒殺" : run.elapsed <= 1 ? "瞬間制勝" : "致勝一擊"}：{source}，造成 {fmt(Math.round(finisher.dmg))} 傷害（守衛生命 {fmt(run.enemyMaxHp)}）。</span>}
                 {run.result === "won" && run.elapsed <= 1 && <span>你嘅實力已超越呢層！繼續挑戰更高層守衛。</span>}
                 {run.result !== "won" && <span>守衛剩 {pct(run.remainingHp)} 生命。升級攻擊、精煉武器或餵貓後再試。</span>}
-                {reward && <span>🐟 +{reward.fish} 魚乾 {reward.gems > 0 && <Amount c="gem" n={reward.gems} />}</span>}
+                {reward && <span><Sprite name="i-fish" className="ico" /> +{reward.fish} 魚乾 {reward.gems > 0 && <Amount c="gem" n={reward.gems} />}</span>}
                 {run.result === "won" && !reward && <span>呢層嘅首通獎已結算。</span>}
               </div>}
             </div>
           )}
           <div className="row-card">
-            <div className="rc-main"><div className="rc-title">挑戰第 {floor} 層{floor % TOWER.milestoneEvery === 0 ? " · 魔王" : ""}</div><div className="rc-reward">首通 🐟 {first.fish} {first.gems > 0 && <Amount c="gem" n={first.gems} />}</div></div>
+            <div className="rc-main"><div className="rc-title">挑戰第 {floor} 層{floor % TOWER.milestoneEvery === 0 ? " · 魔王" : ""}</div><div className="rc-reward">首通 <Sprite name="i-fish" className="ico" /> {first.fish} {first.gems > 0 && <Amount c="gem" n={first.gems} />}</div></div>
             <Btn color="orange" disabled={running} onClick={start}>{running ? "挑戰中…" : run?.result && run.result !== "won" ? "再試一次" : run?.result === "won" ? "挑戰下一層" : "挑戰"}</Btn>
           </div>
           <div className="row-card">

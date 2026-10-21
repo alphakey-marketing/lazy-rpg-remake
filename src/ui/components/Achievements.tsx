@@ -28,7 +28,7 @@ export function Achievements() {
           <div className="rc-desc">{a.description}</div>
           <Bar k={progress / a.target} h={16} color="#5fe07a" label={`${fmt(Math.min(progress, a.target))} / ${fmt(a.target)}`} />
           <div className="rc-reward">
-            {a.reward.fish > 0 && <span>🐟 {a.reward.fish}</span>}
+            {a.reward.fish > 0 && <span><Sprite name="i-fish" className="ico" /> {a.reward.fish}</span>}
             {a.reward.gems > 0 && <Amount c="gem" n={a.reward.gems} size={14} />}
             {a.reward.stones > 0 && <Amount c="stone" n={a.reward.stones} size={14} />}
           </div>

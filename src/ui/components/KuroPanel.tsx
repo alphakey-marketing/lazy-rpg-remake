@@ -8,7 +8,7 @@ import { buzz, sfx } from "../../services/feedback";
 import { drawKuro } from "../render/shapes";
 import { store, useGame } from "../store";
 import { art } from "../art";
-import { Btn, Sheet } from "./common";
+import { Btn, Sheet, Sprite } from "./common";
 import { toast } from "./Toasts";
 
 const MOOD_TEXT: Record<KuroMood, string> = {
@@ -86,10 +86,10 @@ function KuroGrow() {
   const L = k.level, N = Math.min(KURO.maxLevel, L + 1);
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const rows: [string, string, string, string][] = [
-    ["🐾", "貓爪傷害", `攻擊 ×${KURO.strikeMult(L).toFixed(1)}`, `×${KURO.strikeMult(N).toFixed(1)}`],
-    ["⏱️", "貓爪冷卻", `${KURO.cooldown(L).toFixed(1)}s`, `${KURO.cooldown(N).toFixed(1)}s`],
-    ["🪙", "金幣加成", `+${pct((L - 1) * KURO.goldPerLevel)}`, `+${pct((N - 1) * KURO.goldPerLevel)}`],
-    ["🌙", "離線上限", `+${Math.round((L - 1) * KURO.offlineHoursPerLevel * 60)} 分鐘`, `+${Math.round((N - 1) * KURO.offlineHoursPerLevel * 60)} 分鐘`],
+    ["fx-claw", "貓爪傷害", `攻擊 ×${KURO.strikeMult(L).toFixed(1)}`, `×${KURO.strikeMult(N).toFixed(1)}`],
+    ["i-time", "貓爪冷卻", `${KURO.cooldown(L).toFixed(1)}s`, `${KURO.cooldown(N).toFixed(1)}s`],
+    ["i-gold", "金幣加成", `+${pct((L - 1) * KURO.goldPerLevel)}`, `+${pct((N - 1) * KURO.goldPerLevel)}`],
+    ["kuro-sleep", "離線上限", `+${Math.round((L - 1) * KURO.offlineHoursPerLevel * 60)} 分鐘`, `+${Math.round((N - 1) * KURO.offlineHoursPerLevel * 60)} 分鐘`],
   ];
 
   return (
@@ -99,7 +99,7 @@ function KuroGrow() {
         <div className="kuro-info">
           <div className="kuro-name">Kuro <span className="lv">Lv.{k.level}</span></div>
           <div className="kuro-mood">{MOOD_TEXT[mood]}</div>
-          <div className="kuro-fish">🐟 魚乾 <b>{k.fish}</b></div>
+          <div className="kuro-fish"><Sprite name="i-fish" className="ico" /> 魚乾 <b>{k.fish}</b></div>
         </div>
       </div>
 
@@ -127,7 +127,7 @@ function KuroGrow() {
             if (k.level === KURO.autoCastLevel) toast("解鎖自動貓爪！", "#ffd23f");
           }
         }}>
-          {maxed ? "已滿級" : `🐟 ${cost} 餵食升級`}
+          {maxed ? "已滿級" : <><Sprite name="i-fish" className="ico" /> {cost} 餵食升級</>}
         </Btn>
       </div>
 
@@ -136,14 +136,14 @@ function KuroGrow() {
       <div className="kuro-stats">
         {rows.map(([icon, name, cur, next]) => (
           <div key={name} className="ks-row">
-            <span className="ks-icon">{icon}</span>
+            <span className="ks-icon"><Sprite name={icon} className="ico" /></span>
             <span className="ks-name">{name}</span>
             <span className="ks-cur">{cur}</span>
             {!maxed && <span className="ks-next">→ {next}</span>}
           </div>
         ))}
         <div className="ks-row">
-          <span className="ks-icon">🤖</span>
+          <span className="ks-icon"><Sprite name="i-speed" className="ico" /></span>
           <span className="ks-name">自動貓爪</span>
           {autoUnlocked ? (
             <button className={`toggle ${k.auto ? "on" : ""}`} onClick={() => store.act((g) => { g.kuro.auto = !g.kuro.auto; })}>
@@ -176,7 +176,7 @@ function KuroStory({ onStory }: { onStory: (title: string, lines: Line[]) => voi
             onClick={() => { sfx.tap(); onStory(`第${i + 1}章 · ${ch.title}`, ch.intro); }}>
             <span className="sr-num">{i + 1}</span>
             <span className="sr-title">{open ? ch.title : "？？？"}</span>
-            <span className="sr-go">{open ? "▶" : "🔒"}</span>
+            <span className="sr-go">{open ? "▶" : <Sprite name="i-lock" className="ico" />}</span>
           </button>
         );
       })}
@@ -186,9 +186,9 @@ function KuroStory({ onStory }: { onStory: (title: string, lines: Line[]) => voi
         return (
           <button key={i} className={`story-row frag ${open ? "" : "locked"}`} disabled={!open}
             onClick={() => { sfx.tap(); onStory(f.title, f.lines); }}>
-            <span className="sr-num">💠</span>
+            <span className="sr-num"><Sprite name="i-shard" className="ico" /></span>
             <span className="sr-title">{open ? f.title : `轉生 ${i + 1} 次解鎖`}</span>
-            <span className="sr-go">{open ? "▶" : "🔒"}</span>
+            <span className="sr-go">{open ? "▶" : <Sprite name="i-lock" className="ico" />}</span>
           </button>
         );
       })}

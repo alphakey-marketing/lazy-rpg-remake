@@ -1,9 +1,10 @@
 // Canvas2D battle view. Read state every frame, react to sim event for juice.
 // Interface small → later swap to PixiJS / Spine without touch game logic.
-import { BIOMES, FAMILIES, JOBS, jobRoute, SPECIALIZATIONS } from "../../config/content";
+import { BIOMES, FAMILIES, JOBS, jobRoute, SPECIALIZATIONS, type JobId } from "../../config/content";
+import { TOWER } from "../../config/balance";
 import { artImg, preloadArt } from "../art";
 import { BARKS, CHAPTERS } from "../../config/story";
-import { biomeIndex, biomeLoop } from "../../core/formulas";
+import { biomeIndex, biomeLoop, chapterOf } from "../../core/formulas";
 import { SKILL_NAME } from "../names";
 import { jobMechanics } from "../../core/jobs";
 import { fmt } from "../../core/format";
@@ -39,6 +40,7 @@ export class BattleRenderer {
   private dying: { enemy: Enemy; life: number } | null = null;
   private levelGlow = 0;
   private kuroDash = 0; // 1 → 0, Kuro fly to enemy & back
+  private castPose = 0; // 1 → 0 after skill cast, pick cast/recover pose
   private say: { text: string; life: number } | null = null;
   private idleSay = 12; // sec to next random chatter
 
@@ -46,7 +48,7 @@ export class BattleRenderer {
   constructor(private canvas: HTMLCanvasElement, private getState: () => GameState, private bg: string | null = null) {
     if (bg) artImg(bg);
     this.c = canvas.getContext("2d")!;
-    preloadArt("fx-");
+    for (const p of ["fx-", "hero-", "pose-", "kuro-", "boss-", "guard-"]) preloadArt(p);
   }
 
   // spec only if belong current job (old save safety)
@@ -93,6 +95,7 @@ export class BattleRenderer {
         const sp = this.spec();
         const life = e.fx === "meteor" ? 1 : e.fx === "nova" ? (sp === "flow" ? 0.75 : sp === "cataclysm" ? 0.9 : 0.95) : e.fx === "volley" || e.fx === "pierce" ? 0.9 : 0.75;
         this.pushFx(e.fx, life, e.hits);
+        this.castPose = 1;
         const name = `${SKILL_NAME[e.skillId] ?? "技能"}${sp ? " · " + SPECIALIZATIONS[sp as keyof typeof SPECIALIZATIONS].name : ""}`;
         this.addText(this.heroX, gy - u * 3, `${e.empowered ? "法力爆發 · " : ""}${name}`, e.empowered ? "#ffd23f" : "#ffffff", 17, .9);
         break;
@@ -209,6 +212,7 @@ export class BattleRenderer {
     this.shake = Math.max(0, this.shake - dt * 30);
     this.levelGlow = Math.max(0, this.levelGlow - dt);
     this.kuroDash = Math.max(0, this.kuroDash - dt * 2.2);
+    this.castPose = Math.max(0, this.castPose - dt * 1.8);
     if (this.say) {
       this.say.life -= dt;
       if (this.say.life <= 0) this.say = null;
@@ -413,9 +417,11 @@ export class BattleRenderer {
       c.fillStyle = "rgba(255,214,102,0.25)";
       c.fill();
     }
-    drawKuro(c, kx, ky, u * 0.55 * (1 + s.kuro.level * 0.004), this.t);
+    const kSize = u * 1.45 * (1 + s.kuro.level * 0.004);
+    const kBob = this.kuroDash > 0 ? 0 : Math.sin(this.t * 3) * u * 0.05;
+    if (!this.spr(this.kuroDash > 0 ? "kuro-attack" : "kuro-happy", kx, ky + kBob, kSize)) drawKuro(c, kx, ky, u * 0.55 * (1 + s.kuro.level * 0.004), this.t);
     if (this.say) this.drawSay(kx, ky - u * 0.7, this.say.text, this.say.life);
-    drawHero(c, job, this.heroX, gy, u, this.t * (s.battle.enemy ? 1 : 2), this.lunge, this.hurt);
+    if (!this.drawHeroArt(s.job, !!s.battle.enemy)) drawHero(c, job, this.heroX, gy, u, this.t * (s.battle.enemy ? 1 : 2), this.lunge, this.hurt);
 
     const combat = s.battle.combat;
     const route = jobRoute(s.job);
@@ -429,6 +435,7 @@ export class BattleRenderer {
       const max = route === "arcanist" ? 3 : jobMechanics(s).comboTarget;
       const filled = route === "arcanist" ? combat.mana : combat.combo;
       for (let i = 0; i < max; i++) {
+        if (route === "arcanist" && i < filled && this.spr("i-mana", this.heroX + (i - (max - 1) / 2) * 13, gy - u * 2.6, 14)) continue;
         c.beginPath(); c.arc(this.heroX + (i - (max - 1) / 2) * 11, gy - u * 2.6, 4, 0, Math.PI * 2);
         c.fillStyle = i < filled ? route === "arcanist" ? "#b07cff" : "#2ee6a8" : "#362743";
         c.fill(); c.strokeStyle = "#fff"; c.lineWidth = 1; c.stroke();
@@ -457,7 +464,7 @@ export class BattleRenderer {
       }
       if (this.enemyFlash > 0) c.filter = `brightness(${1 + this.enemyFlash * 2})`;
       const knock = this.enemyFlash * u * 0.12;
-      drawMonster(c, fam, col, ex + knock, gy, u * 0.85 * scale, this.t, e.kind !== "normal");
+      if (!this.drawEnemyArt(e, ex + knock, gy, scale)) drawMonster(c, fam, col, ex + knock, gy, u * 0.85 * scale, this.t, e.kind !== "normal");
       c.restore();
       // hp bar
       const bw = u * 1.9 * Math.min(1.5, scale);
@@ -482,7 +489,7 @@ export class BattleRenderer {
       c.scale(1 + (1 - k) * 0.5, k);
       c.translate(-this.enemyX, -gy);
       c.filter = "brightness(3)";
-      drawMonster(c, fam, fam.colors[e2.variant] ?? fam.colors[0], this.enemyX, gy, u * 0.85 * scale, this.t, false);
+      if (!this.drawEnemyArt(e2, this.enemyX, gy, scale)) drawMonster(c, fam, fam.colors[e2.variant] ?? fam.colors[0], this.enemyX, gy, u * 0.85 * scale, this.t, false);
       c.restore();
     }
 
@@ -510,6 +517,62 @@ export class BattleRenderer {
       c.stroke();
       c.globalAlpha = 1;
     }
+  }
+
+  // Hero art. blade/arcanist/ranger have ready/cast/recover pose; other job = stand pic + lean.
+  // Pic layout from cut-art saveHero: feet at (0.8B, 1.3B), size 2.3B x 1.36B.
+  private drawHeroArt(job: JobId, fight: boolean): boolean {
+    const posed = job === "blade" || job === "arcanist" || job === "ranger";
+    let name = `hero-${job}`;
+    if (posed) {
+      if (this.castPose > 0.5) name = `pose-${job}-cast`;
+      else if (this.castPose > 0 || this.lunge > 0.35) name = `pose-${job}-recover`;
+      else if (fight) name = `pose-${job}-ready`;
+    }
+    const im = artImg(name) ?? artImg(`hero-${job}`);
+    if (!im) return false;
+    const c = this.c, u = this.unit, gy = this.groundY;
+    const B = u * 2.05;
+    const bob = Math.sin(this.t * (fight ? 6 : 12)) * u * 0.04;
+    const fx = this.heroX + this.lunge * u * 0.5;
+    c.save();
+    c.beginPath();
+    c.ellipse(this.heroX, gy + 2, u * 0.7, u * 0.16, 0, 0, Math.PI * 2);
+    c.fillStyle = "rgba(0,0,0,0.22)";
+    c.fill();
+    if (this.hurt > 0) c.filter = `brightness(${1 + this.hurt * 1.5})`;
+    c.translate(fx, gy);
+    if (!posed && this.lunge > 0) c.rotate(this.lunge * 0.12);
+    c.drawImage(im, -0.8 * B, -1.3 * B + Math.min(0, bob), B * 2.3, B * 1.36);
+    c.restore();
+    return true;
+  }
+
+  // Big enemy art: chapter 1 boss = Slime King; tower = 3 guard tier.
+  private enemyArt(e: Enemy): string | null {
+    const s = this.getState();
+    if (this.bg === "bg-tower") {
+      if (e.kind === "chapterBoss") return "guard-3";
+      const floor = Math.floor((s.stage - TOWER.firstEnemyStage) / TOWER.stagesPerFloor) + 1;
+      return floor < 10 ? "guard-1" : "guard-2";
+    }
+    if (e.kind === "chapterBoss" && chapterOf(s.stage) === 1) return "boss-slime";
+    return null;
+  }
+
+  private drawEnemyArt(e: Enemy, x: number, gy: number, scale: number): boolean {
+    const name = this.enemyArt(e);
+    const im = name ? artImg(name) : null;
+    if (!im) return false;
+    const c = this.c, u = this.unit;
+    const sz = u * 2.2 * Math.min(scale, 1.6);
+    const sq = 1 + Math.sin(this.t * 3) * 0.025; // breathe
+    c.beginPath();
+    c.ellipse(x, gy + 2, sz * 0.4, sz * 0.08, 0, 0, Math.PI * 2);
+    c.fillStyle = "rgba(0,0,0,0.25)";
+    c.fill();
+    c.drawImage(im, x - (sz / sq) / 2, gy - sz * sq + sz * 0.02, sz / sq, sz * sq);
+    return true;
   }
 
   // draw cut-art sprite centered. not loaded yet → false (caller draw vector fallback)
@@ -763,6 +826,11 @@ export class BattleRenderer {
               this.shake = Math.max(this.shake, 8);
               this.burst(ex, ey, 18, "#ffd23f", 6);
             }
+          } else if (f.spec === "barrage" && artImg("fx-arrows")) {
+            // barrage = one fan of arrows fly in
+            const p = Math.min(1, k / 0.35);
+            if (p < 1) this.spr("fx-arrows", hx + (ex - hx) * easeIn(p), hy, u * 2, 0, 1);
+            if (this.once(f, "hit", 0.35, k)) { this.burst(ex, ey, 14, "#2ee6a8", 5); this.shake = Math.max(this.shake, 4); }
           } else {
             const n = f.spec === "barrage" ? 3 : 1;
             for (let i = 0; i < n; i++) {

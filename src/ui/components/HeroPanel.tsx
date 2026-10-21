@@ -9,7 +9,7 @@ import { buzz, sfx } from "../../services/feedback";
 import { store, useGame } from "../store";
 import { RARITY_COLOR } from "../theme";
 import { itemName, JOB_NAME, RARITY_NAME, SLOT_NAME, subText } from "../names";
-import { Amount, Btn, ItemCard, Sheet } from "./common";
+import { Amount, Btn, ItemCard, Sheet, Sprite } from "./common";
 import { JobTab } from "./JobTab";
 import { toast } from "./Toasts";
 import type { Item } from "../../core/types";
@@ -27,7 +27,7 @@ export function HeroPanel({ onClose }: { onClose: () => void }) {
       <div className="seg">
         <button className={tab === "gear" ? "on" : ""} onClick={() => setTab("gear")}>裝備</button>
         <button className={tab === "job" ? "on" : ""} onClick={() => setTab("job")}>
-          轉職{jobsReady && <span className="red-dot" />}
+          <Sprite name="i-job" className="ico" />轉職{jobsReady && <span className="red-dot" />}
         </button>
       </div>
 
@@ -67,7 +67,7 @@ export function HeroPanel({ onClose }: { onClose: () => void }) {
             <Btn small color="orange" onClick={() => {
               const r = store.act((g) => salvageWeaker(g));
               toast(r.count ? `分解 ${r.count} 件，獲得 ${r.stones} 精煉石` : "冇較弱裝備");
-            }}>一鍵分解較弱</Btn>
+            }}><Sprite name="i-recycle" className="ico" />一鍵分解較弱</Btn>
           </div>
           <div className="bag-grid">
             {s.bag.map((it) => (
@@ -146,17 +146,17 @@ function ItemDetail({ item, onDone }: { item: Item; onDone: () => void }) {
               </label>
             )}
           </div>
-          {risky && !charm && <div className="warn">⚠ 失敗會跌 1 級（唔會爆裝）</div>}
-          <Btn wide color="blue" disabled={s.stones < cost.stones || s.gold < cost.gold} onClick={doRefine}>精煉</Btn>
+          {risky && !charm && <div className="warn"><Sprite name="i-alert" className="ico" /> 失敗會跌 1 級（唔會爆裝）</div>}
+          <Btn wide color="blue" disabled={s.stones < cost.stones || s.gold < cost.gold} onClick={doRefine}><Sprite name="i-forge" className="ico" />精煉</Btn>
         </div>
       )}
 
       <div className="id-actions">
         {!equipped && <Btn color="green" onClick={() => { store.act((g) => equipFromBag(g, item.id)); sfx.loot(1); onDone(); }}>裝備</Btn>}
-        <Btn color="gray" small onClick={() => store.act((g) => toggleLock(g, item.id))}>{item.locked ? "解鎖" : "鎖定"}</Btn>
+        <Btn color="gray" small onClick={() => store.act((g) => toggleLock(g, item.id))}><Sprite name={item.locked ? "i-unlock" : "i-lock"} className="ico" />{item.locked ? "解鎖" : "鎖定"}</Btn>
         {!equipped && !item.locked && (
           <Btn color="red" small onClick={() => { const v = store.act((g) => salvage(g, item.id)); toast(`獲得 ${v} 精煉石`); onDone(); }}>
-            分解 +{salvageValue(item)}
+            <Sprite name="i-recycle" className="ico" />分解 +{salvageValue(item)}
           </Btn>
         )}
       </div>

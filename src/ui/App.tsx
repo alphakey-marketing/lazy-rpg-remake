@@ -136,7 +136,7 @@ export function App() {
     <div className="app">
       <div className="topbar">
         <div className="avatar" onClick={() => setPanel("settings")}>
-          <div className="av-face">🐱</div>
+          <div className="av-face"><Sprite name={`job-${s.job}`} className="av-job" /></div>
           <div className="av-lv">{s.level}</div>
         </div>
         <div className="top-mid">
@@ -219,7 +219,7 @@ export function App() {
       {story && <Dialogue key={story.title} title={story.title} lines={story.lines} onDone={story.done} />}
       {reread && <Dialogue key={"r" + reread.title} title={reread.title} lines={reread.lines} onDone={() => setReread(null)} />}
       {!promotion && !store.offline && panel === null && !story && <Tutorial open={setPanel} />}
-      {promotion && <div className="promotion" role="status" style={{ ["--jc" as any]: JOBS[s.job].color }}><div className="promotion-ring">{jobRoute(s.job) === "blade" ? "🛡️" : jobRoute(s.job) === "arcanist" ? "🔮" : "🏹"}</div><span>轉職完成</span><strong>{JOB_NAME[s.job]}</strong><p>{JOB_PLAYSTYLE[jobRoute(s.job)].hook}</p><small>新技能即將登場！</small></div>}
+      {promotion && <div className="promotion" role="status" style={{ ["--jc" as any]: JOBS[s.job].color }}><div className="promotion-ring"><Sprite name="fx-promote" className="promo-fx" /><Sprite name={`job-${s.job}`} className="promo-job" /></div><span>轉職完成</span><strong>{JOB_NAME[s.job]}</strong><p>{JOB_PLAYSTYLE[jobRoute(s.job)].hook}</p><small>新技能即將登場！</small></div>}
       {!store.offline && !story && panel === null && <BindNudge onOpenSettings={() => setPanel("settings")} />}
       <ConflictModal />
       <Toasts />
@@ -268,8 +268,8 @@ function BossButton() {
 function QuickTrain() {
   const s = useGame();
   const items = [
-    { id: "atk" as const, icon: "⚔️", label: "攻擊" },
-    { id: "hp" as const, icon: "❤️", label: "生命" },
+    { id: "atk" as const, icon: "i-sword", label: "攻擊" },
+    { id: "hp" as const, icon: "i-heart", label: "生命" },
   ];
   return (
     <div className="quick-train">
@@ -280,7 +280,7 @@ function QuickTrain() {
           <button key={it.id} className={`qt-btn ${ok ? "ok" : ""}`} onClick={() => {
             if (store.act((g) => buyTraining(g, it.id, 1))) { sfx.coin(); buzz(6); }
           }}>
-            <span className="qt-icon">{it.icon}</span>
+            <span className="qt-icon"><Sprite name={it.icon} /></span>
             <span className="qt-text">
               <span className="qt-label">{it.label} Lv.{s.training[it.id]}</span>
               <Amount c="gold" n={cost} size={14} />

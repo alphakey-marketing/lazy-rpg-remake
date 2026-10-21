@@ -5,7 +5,7 @@ import { bestiaryBonus, bestiaryDiscovered, bestiaryNext, bestiaryTier, bestiary
 import { fmt } from "../../core/format";
 import { drawMonster } from "../render/shapes";
 import { useGame } from "../store";
-import { Bar, Sheet } from "./common";
+import { Bar, Sheet, Sprite } from "./common";
 
 const IDS = Object.keys(BESTIARY) as FamilyId[];
 
@@ -41,7 +41,7 @@ export function BestiaryPanel({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="怪物圖鑑" onClose={onClose} tall>
       <div className="bst-sum">
-        <div>發現 <b>{bestiaryDiscovered(s)}/{IDS.length}</b> · 星級 <b>{bestiaryTotalTiers(s)}/{IDS.length * BESTIARY_TIERS.length}</b></div>
+        <div><Sprite name="i-search" className="ico" />發現 <b>{bestiaryDiscovered(s)}/{IDS.length}</b> · 星級 <b>{bestiaryTotalTiers(s)}/{IDS.length * BESTIARY_TIERS.length}</b></div>
         <div className="bst-bonus">
           {active.length ? active.map((k) => <span key={k}>{fmtBonus(k, bonus[k])}</span>) : <span>打怪儲數，解鎖永久加成！</span>}
         </div>

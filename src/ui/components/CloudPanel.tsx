@@ -3,7 +3,7 @@ import { fmtDuration } from "../../core/format";
 import { sfx } from "../../services/feedback";
 import { isNative, linkGoogle, resolveConflict, SaveMeta, signOutCloud, uploadNow, useCloud } from "../cloudSync";
 import { useGame } from "../store";
-import { Btn, Modal } from "./common";
+import { Btn, Modal, Sprite } from "./common";
 import { toast } from "./Toasts";
 
 function ago(ms: number): string {
@@ -26,7 +26,7 @@ export function CloudCard() {
   return (
     <div className="cloud-card">
       <div className="cloud-top">
-        <span className="cloud-icon">{c.guest ? "☁️" : "🔒"}</span>
+        <span className="cloud-icon"><Sprite name={c.guest ? "i-cloud" : "i-lock"} /></span>
         <div className="cloud-main">
           <div className="rc-title">雲端存檔</div>
           <small>{status}</small>

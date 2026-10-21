@@ -17,7 +17,7 @@ import { buzz, sfx } from "../../services/feedback";
 import { store, useGame } from "../store";
 import { RARITY_COLOR } from "../theme";
 import { CORRUPTION_NAME, PERK_NAME, QUEST_NAME, RARITY_NAME, TRAIN_NAME } from "../names";
-import { Amount, Bar, Btn, CurIcon, Modal, Sheet } from "./common";
+import { Amount, Bar, Btn, CurIcon, Modal, Sheet, Sprite } from "./common";
 import { toast } from "./Toasts";
 import { achievementClaimable } from "../../core/achievements";
 import { Achievements } from "./Achievements";
@@ -121,7 +121,7 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
     <Sheet title="商店" onClose={onClose}>
       <div className="shop-grid">
         <div className="shop-card">
-          <div className="sc-icon">📺</div>
+          <div className="sc-icon"><Sprite name="i-video" /></div>
           <div className="sc-name">免費寶石</div>
           <div className="sc-desc">睇廣告 +{GEM_SHOP.adGems}（今日剩 {left}）</div>
           <Btn color="orange" disabled={busy || left <= 0} dot={left > 0} onClick={async () => {
@@ -132,7 +132,7 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
           }}>{busy ? "播放中…" : "觀看"}</Btn>
         </div>
         <div className="shop-card">
-          <div className="sc-icon">⏩</div>
+          <div className="sc-icon"><Sprite name="i-time" /></div>
           <div className="sc-name">時光沙漏</div>
           <div className="sc-desc">即刻獲得 {GEM_SHOP.timeWarpHours} 小時金幣</div>
           <Btn color="blue" disabled={s.gems < GEM_SHOP.timeWarpCost} onClick={() => {
@@ -149,19 +149,19 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
           </Btn>
         </div>
         <div className="shop-card premium">
-          <div className="sc-icon">👑</div>
+          <div className="sc-icon"><Sprite name="i-vip" /></div>
           <div className="sc-name">月卡</div>
           <div className="sc-desc">每日 100 寶石 + 離線 ×1.5</div>
           <Btn color="gold" disabled>即將推出</Btn>
         </div>
         <div className="shop-card premium">
-          <div className="sc-icon">🚫</div>
+          <div className="sc-icon"><Sprite name="i-noads" /></div>
           <div className="sc-name">去除廣告</div>
           <div className="sc-desc">廣告獎勵直接領取</div>
           <Btn color="gold" disabled>即將推出</Btn>
         </div>
         <div className="shop-card premium">
-          <div className="sc-icon">🎁</div>
+          <div className="sc-icon"><Sprite name="i-gift" /></div>
           <div className="sc-name">新手禮包</div>
           <div className="sc-desc">500 寶石 + 5 守護符</div>
           <Btn color="gold" disabled>即將推出</Btn>
@@ -241,7 +241,7 @@ export function LoginPanel({ onClose }: { onClose: () => void }) {
                 {"stones" in r && <Amount c="stone" n={r.stones} size={22} />}
                 {"goldHours" in r && <span className="amount"><CurIcon c="gold" size={22} />{r.goldHours}h</span>}
               </div>
-              {claimed && <div className="ld-check">✔</div>}
+              {claimed && <div className="ld-check"><Sprite name="i-check" /></div>}
             </div>
           );
         })}
@@ -277,6 +277,10 @@ export function CorruptionPanel({ onClose }: { onClose: () => void }) {
 }
 
 // ── Settings ────────────────────────────────────────────────────────
+const SETTING_ICON: Record<"sound" | "haptics" | "autoBoss" | "autoEquip", (on: boolean) => string> = {
+  sound: (on) => (on ? "i-sound" : "i-mute"), haptics: () => "i-vibrate", autoBoss: () => "i-speed", autoEquip: () => "i-armor",
+};
+
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const s = useGame();
   const [reset, setReset] = useState(0);
@@ -285,6 +289,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     <Sheet title="設定" onClose={onClose}>
       {([["sound", "音效"], ["haptics", "震動"], ["autoBoss", "自動挑戰 Boss"], ["autoEquip", "自動裝備更強裝備"]] as const).map(([k, label]) => (
         <div key={k} className="row-card" onClick={() => toggle(k)}>
+          <Sprite name={SETTING_ICON[k](s.settings[k])} className="row-ico" />
           <div className="rc-main"><div className="rc-title">{label}</div></div>
           <div className={`switch ${s.settings[k] ? "on" : ""}`}><div /></div>
         </div>
@@ -306,7 +311,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         if (reset < 2) { setReset(reset + 1); toast(reset === 0 ? "再撳兩次確認刪除存檔" : "再撳一次！"); return; }
         store.hardReset();
         onClose();
-      }}>刪除存檔 {reset > 0 ? `(${3 - reset})` : ""}</Btn>
+      }}><Sprite name="i-trash" className="ico" />刪除存檔 {reset > 0 ? `(${3 - reset})` : ""}</Btn>
       <div className="hint">Lazy RPG Remake v0.3 · 原創內容</div>
     </Sheet>
   );
@@ -328,12 +333,12 @@ export function OfflineModal({ sum }: { sum: OfflineSummary }) {
       <div className="off-grid">
         <div><CurIcon c="gold" size={28} /><b>{fmt(sum.gold)}</b></div>
         <div><CurIcon c="stone" size={28} /><b>{fmt(sum.salvagedStones)}</b></div>
-        <div>⚔️<b>{fmt(sum.kills)}</b><small>擊殺</small></div>
-        <div>⬆️<b>+{sum.levelsGained}</b><small>等級</small></div>
+        <div><Sprite name="i-sword" className="ico" /><b>{fmt(sum.kills)}</b><small>擊殺</small></div>
+        <div><Sprite name="i-up" className="ico" /><b>+{sum.levelsGained}</b><small>等級</small></div>
         <div>🚩<b>{sum.stagesGained >= 0 ? "+" : ""}{sum.stagesGained}</b><small>關卡</small></div>
-        <div>🎁<b>{sum.items}</b><small>裝備</small></div>
+        <div><Sprite name="i-chest" className="ico" /><b>{sum.items}</b><small>裝備</small></div>
       </div>
-      {sum.fish > 0 && <div className="off-best" style={{ color: "#7fe3ff" }}>🐟 Kuro 收到魚乾 +{sum.fish}</div>}
+      {sum.fish > 0 && <div className="off-best" style={{ color: "#7fe3ff" }}><Sprite name="i-fish" className="ico" /> Kuro 收到魚乾 +{sum.fish}</div>}
       {sum.bestRarity && (
         <div className="off-best" style={{ color: RARITY_COLOR[sum.bestRarity] }}>最佳掉落：{RARITY_NAME[sum.bestRarity]}</div>
       )}
@@ -349,7 +354,7 @@ export function OfflineModal({ sum }: { sum: OfflineSummary }) {
             toast("收益 ×2！", "#ffd23f");
           }
           close();
-        }}>{busy ? "播放中…" : "📺 ×2 領取"}</Btn>
+        }}>{busy ? "播放中…" : <><Sprite name="i-video" className="ico" /> ×2 領取</>}</Btn>
       </div>
     </Modal>
   );
