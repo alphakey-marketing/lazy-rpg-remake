@@ -7,6 +7,7 @@ import { chapterOf } from "../../core/formulas";
 import { buzz, sfx } from "../../services/feedback";
 import { drawKuro } from "../render/shapes";
 import { store, useGame } from "../store";
+import { art } from "../art";
 import { Btn, Sheet } from "./common";
 import { toast } from "./Toasts";
 
@@ -40,6 +41,17 @@ function KuroPortrait({ size = 110, happy }: { size?: number; happy?: boolean })
   return <canvas ref={ref} style={{ width: size, height: size }} />;
 }
 
+type Pose = "sleep" | "pat" | "happy" | "meh" | "attack" | "eat";
+const MOOD_POSE: Record<KuroMood, Pose> = { happy: "happy", wantPet: "meh", sulk: "sleep" };
+
+// Pose art from art/ sheet. Action pose (pat/eat) show short time then back to mood pose.
+function KuroPose({ mood, action }: { mood: KuroMood; action: Pose | null }) {
+  const pose = action ?? MOOD_POSE[mood];
+  const src = art(`kuro-${pose}`);
+  if (!src) return <KuroPortrait happy={mood === "happy"} />;
+  return <img key={pose} className={`kuro-pose pose-${pose}`} src={src} alt="Kuro" draggable={false} />;
+}
+
 export function KuroPanel({ onClose, onStory }: { onClose: () => void; onStory: (title: string, lines: Line[]) => void }) {
   const [tab, setTab] = useState<"grow" | "story">("grow");
   return (
@@ -58,6 +70,14 @@ function KuroGrow() {
   const k = s.kuro;
   const now = Date.now();
   const mood = kuroMood(s, now);
+  const [action, setAction] = useState<Pose | null>(null);
+  const timer = useRef(0);
+  const play = (p: Pose, ms = 1600) => {
+    setAction(p);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setAction(null), ms);
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   const wait = petWaitMs(s, now);
   const maxed = k.level >= KURO.maxLevel;
   const cost = kuroFeedCost(s);
@@ -75,7 +95,7 @@ function KuroGrow() {
   return (
     <div className="kuro-grow">
       <div className="kuro-hero">
-        <div className={`kuro-pic ${k.buffLeft > 0 ? "blessed" : ""}`}><KuroPortrait happy={mood === "happy"} /></div>
+        <div className={`kuro-pic ${k.buffLeft > 0 ? "blessed" : ""}`}><KuroPose mood={mood} action={action} /></div>
         <div className="kuro-info">
           <div className="kuro-name">Kuro <span className="lv">Lv.{k.level}</span></div>
           <div className="kuro-mood">{MOOD_TEXT[mood]}</div>
@@ -91,6 +111,7 @@ function KuroGrow() {
         <Btn color={wait > 0 ? "gray" : "orange"} disabled={wait > 0} dot={wait === 0} onClick={() => {
           const r = store.act((g) => petKuro(g, Date.now()));
           if (!r) return;
+          play("pat");
           sfx.win();
           buzz(30);
           toast(r.sulk ? `Kuro 原諒你喇～ 🐟+${r.fish}` : `呼嚕呼嚕～ 🐟+${r.fish}`, "#ffd23f");
@@ -99,6 +120,7 @@ function KuroGrow() {
         </Btn>
         <Btn color={canFeed ? "green" : "gray"} disabled={!canFeed} onClick={() => {
           if (store.act((g) => feedKuro(g))) {
+            play("eat");
             sfx.levelUp();
             buzz(20);
             toast(`Kuro 升到 Lv.${k.level}！`, "#c77dff");

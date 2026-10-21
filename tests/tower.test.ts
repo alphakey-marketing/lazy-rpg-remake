@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { KURO, TOWER } from "../src/config/balance";
 import { rebirth } from "../src/core/actions";
 import { dayKey } from "../src/core/daily";
-import { nextPlayerGoal } from "../src/core/goals";
+import { GOAL_ROTATE_MS, nextPlayerGoal } from "../src/core/goals";
+import { claimAllAchievements } from "../src/core/achievements";
 import { newGame, SAVE_VERSION } from "../src/core/newGame";
 import { deserialize, serialize } from "../src/core/save";
 import { claimTowerDaily, createTowerRun, settleTowerRun, tickTower, towerClaw, towerDailyAvailable, towerDailyReward, towerFirstReward, towerModifier, towerUnlocked } from "../src/core/tower";
@@ -201,7 +202,11 @@ describe("first-session goals", () => {
     s.kuro.level = KURO.autoCastLevel;
     expect(nextPlayerGoal(s, TODAY).title).toContain("今日");
     s.tower.dailyClaimDay = dayKey(TODAY);
-    expect(nextPlayerGoal(s, TODAY).detail).toContain("離開後");
+    claimAllAchievements(s); // claimable rewards come first; test rotation only
+    const titles = new Set(Array.from({ length: 12 }, (_, i) => nextPlayerGoal(s, TODAY + i * GOAL_ROTATE_MS).title));
+    expect(titles.size).toBeGreaterThan(2); // late goals rotate, not only tower
+    expect([...titles].some((x) => x.includes("無盡塔"))).toBe(true);
+    expect([...titles].some((x) => x.includes("今日"))).toBe(false);
     expect(nextPlayerGoal(s, TOMORROW).title).toContain("今日");
   });
 });

@@ -1,0 +1,57 @@
+[
+  {
+    "file": "round-1/01-job-lineup.png",
+    "title": "七職業外形",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-1/02-menu-bar-states.png",
+    "title": "Menu bar 三種狀態",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-1/03-system-icons.png",
+    "title": "24 個主要圖示",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-2/01-kuro-six-states.png",
+    "title": "六專精徽記",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-1/04-specialization-icons.png",
+    "title": "黑貓六狀態",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-2/02-combat-action-board.png",
+    "title": "九戰鬥關鍵姿勢",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-2/03-vfx-atlas.png",
+    "title": "12 技能效果",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-3/01-tower-battle-background.png",
+    "title": "塔戰鬥背景",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-3/02-guardians-and-first-boss.png",
+    "title": "首章 Boss 及塔守衛",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-3/03-eight-achievement-badges.png",
+    "title": "八成就章",
+    "stage": "review-sheet"
+  },
+  {
+    "file": "round-1/05-utility-and-equipment-icons.png",
+    "title": "24 個補充圖示",
+    "stage": "review-sheet"
+  }
+]

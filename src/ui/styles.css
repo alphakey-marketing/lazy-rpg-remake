@@ -701,3 +701,24 @@ select { font-family: inherit; font-size: 15px; border: 3px solid var(--ink); bo
 .cf-box small { color: #b9b0d8; font-size: 11px; margin-bottom: 6px; }
 .cf-title { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
 .cf-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; align-items: center; }
+
+/* ── Art sprites ── */
+.sprite { display: block; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.si-icon .sprite { width: 36px; height: 36px; }
+.nav-btn .nb-icon { display: grid; place-items: center; height: 30px; }
+.nav-btn .nb-icon .sprite { width: 30px; height: 30px; filter: drop-shadow(0 2px 0 #0006); }
+.nav-btn:not(.on) .nb-icon .sprite { opacity: .82; }
+.bar-label { line-height: 1; white-space: nowrap; }
+.bst-count { font-size: 11px; font-weight: 800; color: #6b5a86; font-variant-numeric: tabular-nums; }
+.ach-badge { width: 44px; height: 44px; flex-shrink: 0; }
+.achievement-card:not(.dim) .ach-badge.locked { filter: grayscale(.85) opacity(.55); }
+.spec-icon { width: 36px; height: 36px; flex-shrink: 0; }
+.spec-head { display: flex; align-items: center; gap: 8px; }
+.jp-info{display:block;font-weight:800;color:#6b5a86;font-variant-numeric:tabular-nums}
+
+.kuro-pic{display:grid;place-items:center;width:110px;height:110px;overflow:hidden}
+.kuro-pose{width:104px;height:104px;object-fit:contain;animation:kuroBob 2.4s ease-in-out infinite,kuroPop .25s ease-out}
+.kuro-pose.pose-sleep{animation:kuroBreath 3.2s ease-in-out infinite,kuroPop .25s ease-out}
+@keyframes kuroBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes kuroBreath{0%,100%{transform:scale(1)}50%{transform:scale(1.03,.97)}}
+@keyframes kuroPop{from{transform:scale(.85)}to{transform:scale(1)}}

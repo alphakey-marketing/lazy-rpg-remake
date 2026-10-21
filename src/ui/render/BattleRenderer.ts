@@ -1,6 +1,7 @@
 // Canvas2D battle view. Read state every frame, react to sim event for juice.
 // Interface small → later swap to PixiJS / Spine without touch game logic.
-import { BIOMES, FAMILIES, JOBS, jobRoute } from "../../config/content";
+import { BIOMES, FAMILIES, JOBS, jobRoute, SPECIALIZATIONS } from "../../config/content";
+import { artImg, preloadArt } from "../art";
 import { BARKS, CHAPTERS } from "../../config/story";
 import { biomeIndex, biomeLoop } from "../../core/formulas";
 import { SKILL_NAME } from "../names";
@@ -15,7 +16,7 @@ import { drawHero, drawKuro, drawMonster, OUTLINE, shade } from "./shapes";
 interface FloatText { x: number; y: number; vy: number; text: string; color: string; size: number; life: number; max: number; }
 interface Particle { x: number; y: number; vx: number; vy: number; r: number; color: string; life: number; max: number; g: number; }
 interface Beam { x: number; color: string; tier: number; life: number; max: number; }
-interface Fx { kind: string; life: number; max: number; hits: number; }
+interface Fx { kind: string; life: number; max: number; hits: number; spec: string | null; fired: string[]; }
 interface Banner { text: string; sub: string; color: string; life: number; max: number; }
 
 export class BattleRenderer {
@@ -41,8 +42,23 @@ export class BattleRenderer {
   private say: { text: string; life: number } | null = null;
   private idleSay = 12; // sec to next random chatter
 
-  constructor(private canvas: HTMLCanvasElement, private getState: () => GameState) {
+  // bg: art name for fixed backdrop (tower). null → biome parallax
+  constructor(private canvas: HTMLCanvasElement, private getState: () => GameState, private bg: string | null = null) {
+    if (bg) artImg(bg);
     this.c = canvas.getContext("2d")!;
+    preloadArt("fx-");
+  }
+
+  // spec only if belong current job (old save safety)
+  private spec(): string | null {
+    const s = this.getState();
+    const sp = s.specialization;
+    return sp && SPECIALIZATIONS[sp]?.job === s.job ? sp : null;
+  }
+
+  private pushFx(kind: string, life: number, hits: number) {
+    if (this.fx.length > 24) this.fx.shift();
+    this.fx.push({ kind, life, max: life, hits, spec: this.spec(), fired: [] });
   }
 
   resize(w: number, h: number) {
@@ -73,28 +89,32 @@ export class BattleRenderer {
           this.burst(ex, gy - u, 8, "#ffd23f", 4);
         } else this.burst(ex, gy - u, 3, "#ffffff", 2.5);
         break;
-      case "skillCast":
-        this.fx.push({ kind: e.fx, life: 0.7, max: 0.7, hits: e.hits });
-        this.addText(this.heroX, gy - u * 3, `${e.empowered ? "法力爆發 · " : ""}${SKILL_NAME[e.skillId] ?? "技能"}`, e.empowered ? "#ffd23f" : "#ffffff", 17, .8);
+      case "skillCast": {
+        const sp = this.spec();
+        const life = e.fx === "meteor" ? 1 : e.fx === "nova" ? (sp === "flow" ? 0.75 : sp === "cataclysm" ? 0.9 : 0.95) : e.fx === "volley" || e.fx === "pierce" ? 0.9 : 0.75;
+        this.pushFx(e.fx, life, e.hits);
+        const name = `${SKILL_NAME[e.skillId] ?? "技能"}${sp ? " · " + SPECIALIZATIONS[sp as keyof typeof SPECIALIZATIONS].name : ""}`;
+        this.addText(this.heroX, gy - u * 3, `${e.empowered ? "法力爆發 · " : ""}${name}`, e.empowered ? "#ffd23f" : "#ffffff", 17, .9);
         break;
+      }
       case "ward":
+        if (!this.fx.some((f) => f.kind === "ward")) this.pushFx("ward", 0.9, 1);
         this.addText(this.heroX, gy - u * 2.4, `${e.blocked ? "格擋" : "護盾"} ${fmt(Math.round(e.amount))}`, "#7fe3ff", 17, .8);
         break;
       case "proc":
         this.enemyFlash = 1;
         this.shake = Math.max(this.shake, 3);
-        this.fx.push({ kind: e.kind === "pursuit" ? "pierce" : "slash", life: .3, max: .3, hits: 1 });
+        this.pushFx(e.kind, this.spec() === "marksman" ? 0.7 : 0.45, 1);
         this.addText(ex, gy - u * 2.5, `${e.kind === "counter" ? "反擊" : "追擊"} ${fmt(Math.round(e.dmg))}`, e.kind === "counter" ? "#ffd166" : "#2ee6a8", 22, .85);
         break;
       case "skill":
-        if (e.hitIndex === undefined) this.fx.push({ kind: e.fx, life: 0.7, max: 0.7, hits: e.hits });
         this.shake = Math.max(this.shake, e.empowered ? 9 : e.hits > 1 ? 3 : 7);
         this.enemyFlash = 1;
         this.addText(ex, gy - u * 3, `${e.hits > 1 && e.hitIndex !== undefined ? `${e.hitIndex + 1}連 · ` : ""}${fmt(Math.max(1, Math.round(e.dmg)))}`, e.empowered ? "#ffd23f" : e.crit ? "#ff9cf5" : "#c9a7ff", e.hits > 1 ? 25 : e.crit ? 38 : 32, .85);
         break;
       case "kuroStrike":
         this.kuroDash = 1;
-        this.fx.push({ kind: "claw", life: 0.55, max: 0.55, hits: e.hits });
+        this.pushFx("claw", 0.55, e.hits);
         this.shake = Math.max(this.shake, e.auto ? 6 : 9);
         this.enemyFlash = 1;
         this.addText(ex, gy - u * 3.6, fmt(Math.max(1, Math.round(e.dmg))), e.crit ? "#ff7ad9" : "#d59bff", e.crit ? 40 : 34, 1.3, "🐾 ");
@@ -246,6 +266,15 @@ export class BattleRenderer {
   // ── Background: sky → far hill → near hill → ground + props, parallax ──
   private drawBackground(s: GameState) {
     const c = this.c, W = this.W, H = this.H, gy = this.groundY;
+    const im = this.bg ? artImg(this.bg) : null;
+    if (im) {
+      // cover fit, floor line (78% of pic) sit on groundY
+      const FLOOR = 0.78;
+      const iw = im.naturalWidth, ih = im.naturalHeight;
+      const sc = Math.max(W / iw, gy / (ih * FLOOR), (H - gy) / (ih * (1 - FLOOR)));
+      c.drawImage(im, (W - iw * sc) / 2, gy - ih * FLOOR * sc, iw * sc, ih * sc);
+      return;
+    }
     const b = BIOMES[biomeIndex(s.stage)];
     const loop = biomeLoop(s.stage);
     const g = c.createLinearGradient(0, 0, 0, gy);
@@ -483,102 +512,381 @@ export class BattleRenderer {
     }
   }
 
+  // draw cut-art sprite centered. not loaded yet → false (caller draw vector fallback)
+  private spr(name: string, x: number, y: number, size: number, rot = 0, alpha = 1, add = false): boolean {
+    const im = artImg(name);
+    if (!im) return false;
+    const c = this.c;
+    c.save();
+    c.globalAlpha = Math.max(0, Math.min(1, alpha));
+    if (add) c.globalCompositeOperation = "lighter";
+    c.translate(x, y);
+    if (rot) c.rotate(rot);
+    c.drawImage(im, -size / 2, -size / 2, size, size);
+    c.restore();
+    return true;
+  }
+
+  private ring(x: number, y: number, r: number, color: string, w: number, alpha: number) {
+    const c = this.c;
+    c.save();
+    c.globalAlpha = Math.max(0, Math.min(1, alpha));
+    c.beginPath();
+    c.arc(x, y, Math.max(1, r), 0, Math.PI * 2);
+    c.strokeStyle = color;
+    c.lineWidth = Math.max(0.5, w);
+    c.shadowColor = color;
+    c.shadowBlur = 14;
+    c.stroke();
+    c.restore();
+  }
+
+  private glow(x: number, y: number, r: number, inner: string, alpha: number) {
+    const c = this.c;
+    c.save();
+    c.globalAlpha = Math.max(0, Math.min(1, alpha));
+    c.globalCompositeOperation = "lighter";
+    const g = c.createRadialGradient(x, y, 0, x, y, Math.max(1, r));
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(0.25, inner);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(x, y, Math.max(1, r), 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
+  // one-shot moment inside fx (impact burst etc)
+  private once(f: Fx, key: string, at: number, k: number): boolean {
+    if (k < at || f.fired.includes(key)) return false;
+    f.fired.push(key);
+    return true;
+  }
+
   private drawFx() {
     const c = this.c, u = this.unit, gy = this.groundY, ex = this.enemyX, hx = this.heroX;
+    const ey = gy - u; // enemy body center
+    const hy = gy - u;
     for (const f of this.fx) {
       const k = 1 - f.life / f.max; // 0 → 1
       const a = 1 - k;
       c.save();
       switch (f.kind) {
-        case "slash":
-        case "poke":
-          for (let i = 0; i < Math.max(1, f.hits); i++) {
-            c.beginPath();
-            c.arc(ex, gy - u, u * (1.2 + i * 0.25), -1.2 + k * 2 + i * 0.6, -0.2 + k * 2 + i * 0.6);
-            c.strokeStyle = `rgba(255,255,255,${a})`;
-            c.lineWidth = 8 - i;
-            c.stroke();
+        case "poke": {
+          const p = easeOut(Math.min(1, k * 2.5));
+          if (!this.spr("fx-spark", ex, ey, u * (0.8 + p * 1.2), k * 2, a * 1.4)) {
+            this.ring(ex, ey, u * (0.4 + p), "#fff", 6, a);
           }
+          if (this.once(f, "hit", 0.05, k)) this.burst(ex, ey, 8, "#fff3b0", 4);
           break;
-        case "meteor": {
-          const y = -40 + k * (gy - u + 40) * 1.6;
-          if (k < 0.62) {
-            c.beginPath();
-            c.arc(ex + (1 - k) * 60, Math.min(y, gy - u), u * 0.6, 0, Math.PI * 2);
-            c.fillStyle = "#ff8a3d";
-            c.shadowColor = "#ff5a2a";
-            c.shadowBlur = 30;
-            c.fill();
-          } else {
-            const r = u * (0.5 + (k - 0.62) * 8);
-            c.beginPath();
-            c.arc(ex, gy - u * 0.5, r, 0, Math.PI * 2);
-            c.fillStyle = `rgba(255,140,60,${a * 1.6})`;
-            c.fill();
+        }
+        case "slash": {
+          // whirl: red arcs spin round enemy, one per hit
+          for (let i = 0; i < Math.max(1, f.hits); i++) {
+            const p = Math.min(1, Math.max(0, k * 2.2 - i * 0.28));
+            if (p <= 0) continue;
+            const pa = 1 - p;
+            const rot = -0.9 + p * 2.6 + i * 2.1;
+            if (!this.spr("fx-slash", ex + Math.cos(rot) * u * 0.25, ey + Math.sin(rot) * u * 0.2, u * (1.9 + i * 0.25), rot, pa * 1.5)) {
+              c.beginPath();
+              c.arc(ex, ey, u * (1.2 + i * 0.25), rot - 0.6, rot + 0.4);
+              c.strokeStyle = `rgba(255,120,90,${pa})`;
+              c.lineWidth = 8 - i;
+              c.stroke();
+            }
+            if (this.once(f, "s" + i, 0.02 + i * 0.13, k)) this.burst(ex, ey, 6, "#ff9a7a", 4);
           }
           break;
         }
-        case "volley":
-        case "pierce":
-          for (let i = 0; i < f.hits; i++) {
-            const p = Math.min(1, (k * .7 - i * (f.kind === "volley" ? .12 : .1)) / .14);
-            if (p <= 0) continue;
-            const x = hx + (ex - hx) * p;
-            const y = gy - u * (1 + (i % 3) * 0.3) - Math.sin(p * Math.PI) * (f.kind === "volley" ? u : 0);
-            c.beginPath();
-            c.moveTo(x - 18, y);
-            c.lineTo(x, y);
-            c.strokeStyle = f.kind === "pierce" ? `rgba(46,230,168,${a})` : `rgba(255,255,255,${a})`;
-            c.lineWidth = f.kind === "pierce" ? 5 : 3;
-            c.stroke();
+        case "meteor": {
+          // fall from top-right, trail, then boom
+          const fall = Math.min(1, k / 0.42);
+          if (k < 0.42) {
+            const x = ex + (1 - fall) * u * 3.2, y = -u + (ey + u) * easeIn(fall);
+            for (let t = 1; t <= 4; t++) this.glow(x + t * u * 0.35, y - t * u * 0.45, u * (0.7 - t * 0.12), "#ff7a2a", 0.5 - t * 0.1);
+            if (!this.spr("fx-meteor", x, y, u * 2.1, 0, 1)) {
+              c.beginPath();
+              c.arc(x, y, u * 0.6, 0, Math.PI * 2);
+              c.fillStyle = "#ff8a3d";
+              c.fill();
+            }
+            if (Math.random() < 0.6) this.parts.push({ x: x + u * 0.3, y: y - u * 0.3, vx: 40 + Math.random() * 60, vy: -40 - Math.random() * 40, r: 2 + Math.random() * 3, color: Math.random() < 0.5 ? "#ffb347" : "#7a4b8f", life: 0.4, max: 0.4, g: 200 });
+          } else {
+            const b = (k - 0.42) / 0.58;
+            this.glow(ex, gy - u * 0.6, u * (1 + b * 2.4), "#ff8a3d", (1 - b) * 1.3);
+            this.ring(ex, gy - u * 0.4, u * (0.6 + b * 3), "#ffcf6b", 7 * (1 - b) + 1, 1 - b);
+            this.spr("fx-spark", ex, gy - u * 0.8, u * (1.6 + b * 1.4), b, 1 - b);
+          }
+          if (this.once(f, "boom", 0.42, k)) {
+            this.shake = Math.max(this.shake, 10);
+            this.burst(ex, gy - u * 0.5, 22, "#ff9a3d", 6);
+            this.burst(ex, gy - u * 0.3, 10, "#6b4a7a", 5);
           }
           break;
+        }
+        case "volley": {
+          // arrows lob in arc, one by one
+          for (let i = 0; i < f.hits; i++) {
+            const p = Math.min(1, (k * 0.85 - i * 0.1) / 0.3);
+            if (p <= 0) continue;
+            if (p >= 1) {
+              if (this.once(f, "v" + i, 0, 1)) this.burst(ex, ey, 5, "#b6ff7a", 3);
+              continue;
+            }
+            const x = hx + (ex - hx) * p;
+            const y = hy - u * (0.2 + (i % 3) * 0.25) - Math.sin(p * Math.PI) * u * 1.3;
+            const dy = -Math.cos(p * Math.PI) * u * 1.3 * Math.PI;
+            const rot = Math.atan2(dy, ex - hx);
+            if (!this.spr("fx-arrow", x, y, u * 1.5, rot, 1)) {
+              c.beginPath(); c.moveTo(x - 18, y); c.lineTo(x, y);
+              c.strokeStyle = "#fff"; c.lineWidth = 3; c.stroke();
+            }
+          }
+          break;
+        }
+        case "pierce": {
+          // sniper: fast straight streaks
+          for (let i = 0; i < f.hits; i++) {
+            const p = Math.min(1, (k * 0.9 - i * 0.09) / 0.12);
+            if (p <= 0) continue;
+            if (p >= 1) {
+              if (this.once(f, "p" + i, 0, 1)) this.burst(ex, ey, 4, "#2ee6a8", 4);
+              continue;
+            }
+            const x = hx + (ex - hx) * p;
+            const y = hy - u * 0.15 + ((i % 3) - 1) * u * 0.22;
+            c.beginPath();
+            c.moveTo(x - u * 1.6, y);
+            c.lineTo(x, y);
+            c.strokeStyle = "rgba(46,230,168,.55)";
+            c.lineWidth = 4;
+            c.stroke();
+            this.spr("fx-arrow", x, y, u * 1.3, 0, 1);
+          }
+          break;
+        }
         case "holy": {
-          const w = u * 1.4 * (1 - k * 0.5);
+          // judgement: gold pillar from sky + rune ring on ground. judicator = red-gold, bigger
+          const judge = f.spec === "judicator";
+          const w = u * (judge ? 1.6 : 1.25) * (1 - k * 0.45);
           const grad = c.createLinearGradient(ex - w, 0, ex + w, 0);
-          grad.addColorStop(0, "rgba(255,230,120,0)");
-          grad.addColorStop(0.5, `rgba(255,240,180,${a})`);
-          grad.addColorStop(1, "rgba(255,230,120,0)");
+          const col = judge ? "255,120,80" : "255,230,120";
+          grad.addColorStop(0, `rgba(${col},0)`);
+          grad.addColorStop(0.5, `rgba(255,248,210,${a})`);
+          grad.addColorStop(1, `rgba(${col},0)`);
+          c.globalCompositeOperation = "lighter";
           c.fillStyle = grad;
           c.fillRect(ex - w, 0, w * 2, gy);
+          c.globalCompositeOperation = "source-over";
+          c.save();
+          c.translate(ex, gy);
+          c.scale(1, 0.32);
+          this.ring(0, 0, u * (0.8 + k * 0.9), judge ? "#ff6b4a" : "#ffd23f", 5, a);
+          this.ring(0, 0, u * (1.2 + k * 1.2), judge ? "#ffb347" : "#fff2a8", 3, a * 0.7);
+          c.restore();
+          if (judge) this.spr("fx-ray", ex - u * 0.2, ey - u * (1.8 - k * 1.4), u * 2.2, Math.PI / 2, a * 1.3);
+          for (let i = 0; i < f.hits; i++) {
+            if (this.once(f, "h" + i, i * 0.16, k)) this.burst(ex, ey, 6, judge ? "#ff8a5a" : "#ffe066", 4);
+          }
+          this.spr("fx-spark", ex, ey - u * 0.2, u * (1.4 + Math.sin(k * 20) * 0.2), k * 3, a);
           break;
         }
+        case "nova":
+          if (f.spec === "flow") this.drawFlow(f, k);
+          else if (f.spec === "cataclysm") this.drawCataclysm(f, k);
+          else this.drawNova(f, k);
+          break;
         case "claw": {
-          // 3 slash marks drawn fast, purple glow
+          const p = easeOut(Math.min(1, k * 3));
+          if (this.spr("fx-claw", ex, ey - u * 0.2, u * (1.4 + p * 1.0), -0.15, a * 1.6)) break;
           c.lineCap = "round";
           for (let i = 0; i < f.hits; i++) {
-            const p = Math.min(1, k * 3 - i * 0.35);
-            if (p <= 0) continue;
+            const pp = Math.min(1, k * 3 - i * 0.35);
+            if (pp <= 0) continue;
             const ox = (i - 1) * u * 0.35;
             const x0 = ex + ox - u * 0.6, y0 = gy - u * 2;
             const x1 = ex + ox + u * 0.5, y1 = gy - u * 0.2;
             c.beginPath();
             c.moveTo(x0, y0);
-            c.lineTo(x0 + (x1 - x0) * p, y0 + (y1 - y0) * p);
+            c.lineTo(x0 + (x1 - x0) * pp, y0 + (y1 - y0) * pp);
             c.strokeStyle = `rgba(214,140,255,${a})`;
-            c.shadowColor = "#b14dff";
-            c.shadowBlur = 16;
             c.lineWidth = 7;
-            c.stroke();
-            c.strokeStyle = `rgba(255,255,255,${a})`;
-            c.lineWidth = 2.5;
             c.stroke();
           }
           break;
         }
-        case "nova": {
-          for (let i = 0; i < 3; i++) {
-            c.beginPath();
-            c.arc(ex, gy - u, u * (0.5 + k * 3 + i * 0.4), 0, Math.PI * 2);
-            c.strokeStyle = `rgba(90,209,255,${a * (1 - i * 0.3)})`;
-            c.lineWidth = 7 - i * 2;
-            c.stroke();
+        case "counter": {
+          // gold ray hero → enemy. judicator = fat red-gold
+          const big = f.spec === "judicator";
+          const p = easeOut(Math.min(1, k * 3));
+          const x = hx + (ex - hx) * p;
+          if (!this.spr("fx-ray", x, hy, u * (big ? 2.6 : 1.8), Math.PI, a * 1.5)) {
+            c.beginPath(); c.moveTo(hx, hy); c.lineTo(x, hy);
+            c.strokeStyle = `rgba(255,209,102,${a})`; c.lineWidth = big ? 8 : 5; c.stroke();
           }
+          if (this.once(f, "hit", 0.3, k)) this.burst(ex, ey, big ? 16 : 8, big ? "#ff7a4a" : "#ffd166", big ? 6 : 4);
+          if (k > 0.3) this.spr("fx-spark", ex, ey, u * (big ? 2 : 1.3), k, a);
+          break;
+        }
+        case "pursuit": {
+          // barrage = 3 small fast arrows; marksman = crosshair + one golden heavy shot
+          if (f.spec === "marksman") {
+            const lock = Math.min(1, k / 0.45);
+            c.save();
+            c.translate(ex, ey);
+            c.rotate((1 - lock) * 1.5);
+            const r = u * (1.6 - lock * 0.8);
+            c.globalAlpha = a;
+            c.strokeStyle = "#ffd23f";
+            c.lineWidth = 3;
+            c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.stroke();
+            for (let i = 0; i < 4; i++) {
+              c.rotate(Math.PI / 2);
+              c.beginPath(); c.moveTo(r * 0.55, 0); c.lineTo(r * 1.3, 0); c.stroke();
+            }
+            c.restore();
+            if (k > 0.45) {
+              const p = Math.min(1, (k - 0.45) / 0.15);
+              const x = hx + (ex - hx) * p;
+              c.beginPath();
+              c.moveTo(hx, hy); c.lineTo(x, hy);
+              c.strokeStyle = `rgba(255,220,120,${a})`;
+              c.lineWidth = 6;
+              c.shadowColor = "#ffd23f";
+              c.shadowBlur = 18;
+              c.stroke();
+              c.shadowBlur = 0;
+              this.spr("fx-arrow", x, hy, u * 1.9, 0, 1);
+            }
+            if (this.once(f, "hit", 0.6, k)) {
+              this.shake = Math.max(this.shake, 8);
+              this.burst(ex, ey, 18, "#ffd23f", 6);
+            }
+          } else {
+            const n = f.spec === "barrage" ? 3 : 1;
+            for (let i = 0; i < n; i++) {
+              const p = Math.min(1, (k - i * 0.12) / 0.3);
+              if (p <= 0 || p >= 1) continue;
+              const x = hx + (ex - hx) * p;
+              const y = hy + (i - (n - 1) / 2) * u * 0.3;
+              if (!this.spr("fx-arrow", x, y, u * 1.3, 0, 1)) {
+                c.beginPath(); c.moveTo(x - 18, y); c.lineTo(x, y);
+                c.strokeStyle = "#2ee6a8"; c.lineWidth = 4; c.stroke();
+              }
+            }
+            if (this.once(f, "hit", 0.3, k)) this.burst(ex, ey, 8, "#2ee6a8", 4);
+          }
+          break;
+        }
+        case "ward": {
+          // shield bubble on hero. guardian = big, judicator = small
+          const sz = f.spec === "guardian" ? 2.9 : f.spec === "judicator" ? 1.9 : 2.4;
+          const pop = k < 0.15 ? easeOut(k / 0.15) : 1;
+          const wob = 1 + Math.sin(this.t * 8) * 0.03;
+          this.spr("fx-shield", hx, hy - u * 0.15, u * sz * pop * wob, 0, Math.min(0.75, a * 1.2));
           break;
         }
       }
       c.restore();
     }
+  }
+
+  // archmage base 星爆: orb fly → blue nova
+  private drawNova(f: Fx, k: number) {
+    const u = this.unit, gy = this.groundY, ex = this.enemyX, hx = this.heroX;
+    const ey = gy - u;
+    if (k < 0.35) {
+      const p = k / 0.35;
+      const x = hx + (ex - hx) * easeIn(p);
+      this.glow(x, ey - u * 0.4, u * 1.1, "#5ad1ff", 0.9);
+      this.spr("fx-orb", x, ey - u * 0.4, u * (1.0 + p * 0.4), p * 6, 1);
+    } else {
+      const b = (k - 0.35) / 0.65;
+      this.glow(ex, ey, u * (1 + b * 3), "#5ad1ff", (1 - b) * 1.4);
+      for (let i = 0; i < 3; i++) this.ring(ex, ey, u * (0.5 + b * 3 + i * 0.4), "#7fe3ff", 6 - i * 2, (1 - b) * (1 - i * 0.25));
+      this.spr("fx-ring", ex, ey, u * (1.4 + b * 2.4), b * 2, 1 - b, true);
+    }
+    if (this.once(f, "boom", 0.35, k)) {
+      this.shake = Math.max(this.shake, 8);
+      this.burst(ex, ey, 20, "#7fe3ff", 6);
+    }
+  }
+
+  // 重爆: big purple orb lob, white flash, huge shockwave, shards
+  private drawCataclysm(f: Fx, k: number) {
+    const c = this.c, u = this.unit, gy = this.groundY, ex = this.enemyX, hx = this.heroX, W = this.W, H = this.H;
+    const ey = gy - u;
+    if (k < 0.4) {
+      const p = k / 0.4;
+      const x = hx + (ex - hx) * easeIn(p);
+      const y = ey - u * 1.4 * Math.sin(p * Math.PI) - u * 0.3;
+      this.glow(x, y, u * (1.4 + p), "#b14dff", 1);
+      this.spr("fx-orb", x, y, u * (1.5 + p * 0.8), p * 8, 1);
+    } else {
+      const b = (k - 0.4) / 0.6;
+      if (b < 0.25) {
+        c.save();
+        c.globalAlpha = (0.25 - b) * 3;
+        c.fillStyle = "#fff4d6";
+        c.fillRect(-20, -20, W + 40, H + 40);
+        c.restore();
+      }
+      this.glow(ex, ey, u * (1.5 + b * 4.5), "#ff6a3d", (1 - b) * 1.5);
+      this.glow(ex, ey, u * (1 + b * 2.5), "#b14dff", (1 - b) * 1.2);
+      this.ring(ex, gy - u * 0.4, u * (0.8 + b * 5), "#ffb347", 10 * (1 - b) + 1, 1 - b);
+      this.ring(ex, gy - u * 0.4, u * (0.4 + b * 3.6), "#d59bff", 6 * (1 - b) + 1, 1 - b);
+      for (let i = 0; i < 6; i++) {
+        const ang = -Math.PI / 2 + (i - 2.5) * 0.45;
+        const d = u * (0.6 + b * 3.2);
+        this.spr("fx-meteor", ex + Math.cos(ang) * d, ey + Math.sin(ang) * d * 0.7, u * 0.8, ang + Math.PI * 0.75, 1 - b);
+      }
+    }
+    if (this.once(f, "boom", 0.4, k)) {
+      this.shake = Math.max(this.shake, 16);
+      this.burst(ex, ey, 34, "#ff9a3d", 8);
+      this.burst(ex, ey, 18, "#c77dff", 7);
+    }
+  }
+
+  // 流轉: cyan spiral + 3 orbs orbit hero then stream in; light, fast
+  private drawFlow(f: Fx, k: number) {
+    const c = this.c, u = this.unit, gy = this.groundY, ex = this.enemyX, hx = this.heroX;
+    const ey = gy - u;
+    const spin = this.t * 9;
+    if (k < 0.3) {
+      const p = k / 0.3;
+      this.spr("fx-spiral", hx, ey, u * (1 + p * 0.6), -spin, 0.85, true);
+      for (let i = 0; i < 3; i++) {
+        const ang = spin + (i * Math.PI * 2) / 3;
+        this.glow(hx + Math.cos(ang) * u * 0.9, ey + Math.sin(ang) * u * 0.5, u * 0.45, "#2ee6d0", 1);
+      }
+    } else {
+      const p = Math.min(1, (k - 0.3) / 0.3);
+      for (let i = 0; i < 3; i++) {
+        const q = Math.max(0, Math.min(1, p * 1.4 - i * 0.18));
+        const x = hx + (ex - hx) * q;
+        const y = ey + Math.sin(q * Math.PI * 2 + i * 2) * u * 0.5;
+        if (q < 1) {
+          c.save();
+          c.globalAlpha = 0.5;
+          c.strokeStyle = "#7ff5ff";
+          c.lineWidth = 3;
+          c.beginPath();
+          c.moveTo(x - u * 0.8, y);
+          c.lineTo(x, y);
+          c.stroke();
+          c.restore();
+          this.glow(x, y, u * 0.45, "#2ee6d0", 1);
+        }
+      }
+      const b = Math.max(0, (k - 0.5) / 0.5);
+      if (b > 0) {
+        this.spr("fx-spiral", ex, ey, u * (1.4 + b * 1.2), spin, 1 - b, true);
+        this.ring(ex, ey, u * (0.6 + b * 1.8), "#7ff5ff", 4, 1 - b);
+      }
+    }
+    if (this.once(f, "boom", 0.5, k)) this.burst(ex, ey, 14, "#7ff5ff", 5);
   }
 
   private drawParticles() {
@@ -756,4 +1064,8 @@ function cloud(c: CanvasRenderingContext2D, x: number, y: number, r: number) {
 
 function pick<T>(a: T[]): T {
   return a[Math.floor(Math.random() * a.length)];
+}
+
+function easeIn(k: number) {
+  return k * k;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { JOBS, type JobId, type SpecializationId } from "../../config/content";
+import { JOBS, SPECIALIZATIONS, type JobId, type SpecializationId } from "../../config/content";
 import { freshCombat } from "../../core/newGame";
 import { createRng } from "../../core/rng";
 import { tick } from "../../core/sim";
@@ -34,7 +34,8 @@ export function JobPreview({ state, job, specialization = null }: { state: GameS
       const dt = Math.min(.1, (t - last) / 1000); last = t;
       if (!document.hidden) {
         acc += dt; elapsed += dt;
-        if (elapsed > 5.5) { reset(); elapsed = 0; }
+        // loop long enough: fast skill (flow) cast 2+ times
+        if (elapsed > 8) { reset(); elapsed = 0; }
         while (acc >= .05) { tick(s, .05, rng, (e) => r.onEvent(e)); acc -= .05; }
         r.update(dt); r.draw();
       }
@@ -43,5 +44,7 @@ export function JobPreview({ state, job, specialization = null }: { state: GameS
     raf = requestAnimationFrame(loop);
     return () => { cancelAnimationFrame(raf); resize.disconnect(); };
   }, [job, specialization]);
-  return <div className="job-preview"><b style={{ color: JOBS[job].color }}>{JOB_NAME[job]} · 技能試睇</b><div><canvas ref={canvas} /></div><small>示範戰鬥 · 唔會影響進度或消耗資源</small></div>;
+  const m = jobMechanics({ ...initial.current, job, specialization });
+  const title = JOB_NAME[job] + (specialization ? ` · ${SPECIALIZATIONS[specialization].name}` : "");
+  return <div className="job-preview"><b style={{ color: JOBS[job].color }}>{title} · 技能試睇</b><small className="jp-info">冷卻 {+m.cooldown.toFixed(1)} 秒 · 技能倍率 {Math.round(m.skillScale * 100)}%</small><div><canvas ref={canvas} /></div><small>示範戰鬥 · 唔會影響進度或消耗資源</small></div>;
 }

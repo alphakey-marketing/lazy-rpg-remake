@@ -60,9 +60,12 @@ export function BestiaryPanel({ onClose }: { onClose: () => void }) {
               <MonsterPic id={id} seen={seen} />
               <div className="bst-name">{seen ? b.name : "？？？"}</div>
               <div className="bst-stars">{BESTIARY_TIERS.map((_, i) => <span key={i} className={i < tier ? "on" : ""}>★</span>)}</div>
-              <div className="bst-stat">{fmtBonus(b.stat, b.perTier * Math.max(1, tier))}{tier === 0 && " (1★)"}</div>
+              <div className="bst-stat">{tier === 0 ? "1★ 解鎖：" : ""}{fmtBonus(b.stat, b.perTier * Math.max(1, tier))}</div>
               {next !== null
-                ? <Bar k={(kills - prev) / (next - prev)} h={12} color="#ffb84d" label={`${fmt(kills)}/${fmt(next)}`} />
+                ? <>
+                    <Bar k={(kills - prev) / (next - prev)} h={10} color="#ffb84d" />
+                    <div className="bst-count">擊殺 {fmt(kills)} / {fmt(next)}</div>
+                  </>
                 : <div className="bst-maxed">已滿星 · {fmt(kills)}</div>}
               {seen && <div className="bst-note">{b.note}</div>}
             </div>

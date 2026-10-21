@@ -33,6 +33,7 @@ import type { FamilyId } from "../config/content";
 const BESTIARY_IDS = Object.keys(BESTIARY) as FamilyId[];
 import { ACHIEVEMENTS } from "../config/achievements";
 import { achievementClaimable } from "../core/achievements";
+import { Sprite } from "./components/common";
 
 type Panel = null | "hero" | "train" | "kuro" | "tower" | "bestiary" | "feedback" | "rebirth" | "shop" | "daily" | "login" | "corruption" | "settings";
 
@@ -167,16 +168,16 @@ export function App() {
       <div className="battle-area">
         <BattleCanvas />
         <div className="side left">
-          <SideIcon icon="📅" label="簽到" dot={dots.login} onClick={() => setPanel("login")} />
-          <SideIcon icon="📜" label="任務" dot={dots.daily} onClick={() => setPanel("daily")} />
-          <SideIcon icon="🗼" label="無盡塔" dot={dots.tower} locked={!towerUnlocked(s)} lockText={`${TOWER.unlockStage - 1}關通關`} onClick={() => setPanel("tower")} />
-          <SideIcon icon="📖" label="圖鑑" onClick={() => setPanel("bestiary")} />
+          <SideIcon icon="i-daily" label="簽到" dot={dots.login} onClick={() => setPanel("login")} />
+          <SideIcon icon="i-quest" label="任務" dot={dots.daily} onClick={() => setPanel("daily")} />
+          <SideIcon icon="i-tower" label="無盡塔" dot={dots.tower} locked={!towerUnlocked(s)} lockText={`${TOWER.unlockStage - 1}關通關`} onClick={() => setPanel("tower")} />
+          <SideIcon icon="i-book" label="圖鑑" onClick={() => setPanel("bestiary")} />
         </div>
         <div className="side right">
-          <SideIcon icon="🌑" label="腐化" locked={!corruptionUnlocked(s)} lockText={`${CORRUPTION.unlockStage}關`} onClick={() => setPanel("corruption")} />
-          <SideIcon icon="🔮" label="轉生" dot={dots.rebirth} locked={s.life.bestStage < REBIRTH.unlockStage && s.life.rebirths === 0} lockText={`${REBIRTH.unlockStage}關`} onClick={() => setPanel("rebirth")} />
-          <SideIcon icon="⚙️" label="設定" onClick={() => setPanel("settings")} />
-          <SideIcon icon="💬" label="意見" onClick={() => setPanel("feedback")} />
+          <SideIcon icon="i-corrupt" label="腐化" locked={!corruptionUnlocked(s)} lockText={`${CORRUPTION.unlockStage}關`} onClick={() => setPanel("corruption")} />
+          <SideIcon icon="i-rebirth" label="轉生" dot={dots.rebirth} locked={s.life.bestStage < REBIRTH.unlockStage && s.life.rebirths === 0} lockText={`${REBIRTH.unlockStage}關`} onClick={() => setPanel("rebirth")} />
+          <SideIcon icon="i-settings" label="設定" onClick={() => setPanel("settings")} />
+          <SideIcon icon="i-chat" label="意見" onClick={() => setPanel("feedback")} />
         </div>
         <KuroButton />
         <div className="power-plate">
@@ -194,11 +195,11 @@ export function App() {
       </button>
 
       <nav className="bottom-nav">
-        <NavBtn icon="⚔️" label="戰鬥" on={panel === null} onClick={() => setPanel(null)} />
-        <NavBtn icon="🧝" label="英雄" on={panel === "hero"} dot={dots.hero} onClick={() => setPanel("hero")} />
-        <NavBtn icon="💪" label="訓練" on={panel === "train"} dot={dots.train} onClick={() => setPanel("train")} />
-        <NavBtn icon="🐈‍⬛" label="黑貓" on={panel === "kuro"} dot={dots.kuro} onClick={() => setPanel("kuro")} />
-        <NavBtn icon="💎" label="商店" on={panel === "shop"} onClick={() => setPanel("shop")} />
+        <NavBtn icon="nav-battle" label="戰鬥" on={panel === null} onClick={() => setPanel(null)} />
+        <NavBtn icon="nav-hero" label="英雄" on={panel === "hero"} dot={dots.hero} onClick={() => setPanel("hero")} />
+        <NavBtn icon="nav-train" label="訓練" on={panel === "train"} dot={dots.train} onClick={() => setPanel("train")} />
+        <NavBtn icon="nav-kuro" label="黑貓" on={panel === "kuro"} dot={dots.kuro} onClick={() => setPanel("kuro")} />
+        <NavBtn icon="nav-shop" label="商店" on={panel === "shop"} onClick={() => setPanel("shop")} />
       </nav>
 
       {panel === "hero" && <HeroPanel onClose={() => setPanel(null)} />}
@@ -294,7 +295,7 @@ function QuickTrain() {
 function SideIcon({ icon, label, dot, onClick, locked, lockText }: { icon: string; label: string; dot?: boolean; onClick: () => void; locked?: boolean; lockText?: string }) {
   return (
     <button className={`side-icon ${locked ? "locked" : ""}`} onClick={() => { if (locked) { toast(`${lockText}解鎖`); return; } sfx.tap(); onClick(); }}>
-      <span className="si-icon">{locked ? "🔒" : icon}</span>
+      <span className="si-icon"><Sprite name={locked ? "i-lock" : icon} /></span>
       <span className="si-label">{label}</span>
       {dot && !locked && <span className="red-dot" />}
     </button>
@@ -304,7 +305,7 @@ function SideIcon({ icon, label, dot, onClick, locked, lockText }: { icon: strin
 function NavBtn({ icon, label, on, dot, onClick }: { icon: string; label: string; on: boolean; dot?: boolean; onClick: () => void }) {
   return (
     <button className={`nav-btn ${on ? "on" : ""}`} onClick={() => { sfx.tap(); onClick(); }}>
-      <span className="nb-icon">{icon}</span>
+      <span className="nb-icon"><Sprite name={icon} /></span>
       <span className="nb-label">{label}</span>
       {dot && <span className="red-dot" />}
     </button>

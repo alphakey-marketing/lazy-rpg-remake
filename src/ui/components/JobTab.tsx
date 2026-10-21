@@ -5,7 +5,7 @@ import { computeStats } from "../../core/stats";
 import { fmt } from "../../core/format";
 import { store, useGame } from "../store";
 import { JOB_NAME, SKILL_NAME } from "../names";
-import { Btn } from "./common";
+import { Btn, Sprite } from "./common";
 import { JobPreview } from "./JobPreview";
 import { toast } from "./Toasts";
 
@@ -24,7 +24,7 @@ export function JobTab() {
   const pick = (job: JobId, isRespec = false) => { setSelected(job); setSpec(null); setRespec(isRespec); };
   return <div className="job-tab">
     <div className="job-card current" style={{ ["--jc" as any]: cur.color }}>
-      <div className="jc-name">{JOB_NAME[s.job]}{s.specialization && ` · ${SPECIALIZATIONS[s.specialization].name}`}</div>
+      <div className="jc-name spec-head">{s.specialization && <Sprite name={`spec-${s.specialization}`} className="spec-icon" />}{JOB_NAME[s.job]}{s.specialization && ` · ${SPECIALIZATIONS[s.specialization].name}`}</div>
       <b>{JOB_PLAYSTYLE[jobRoute(s.job)].hook}</b>
       <div className="jc-desc">{s.specialization ? SPECIALIZATIONS[s.specialization].description : JOB_PLAYSTYLE[jobRoute(s.job)].mechanic}</div>
       <div className="jc-skill">技能：{SKILL_NAME[cur.skill.id]} · 自動施放</div>
@@ -46,7 +46,7 @@ export function JobTab() {
     {specializationReady(s) && <div className="job-card">
       <div className="jc-name">揀你嘅二轉專精</div>
       <div className="jc-desc">二選一，今次轉生期間固定；轉生後可以重新揀。</div>
-      {specs.map((id) => <div className="spec-option" key={id}><b>{SPECIALIZATIONS[id].name}</b><p>{SPECIALIZATIONS[id].description}</p><Btn small color="purple" onClick={() => { setSpec(id); setSelected(s.job); setRespec(false); }}>試睇{SPECIALIZATIONS[id].name}</Btn></div>)}
+      {specs.map((id) => <div className="spec-option" key={id}><div className="spec-head"><Sprite name={`spec-${id}`} className="spec-icon" /><b>{SPECIALIZATIONS[id].name}</b></div><p>{SPECIALIZATIONS[id].description}</p><Btn small color="purple" onClick={() => { setSpec(id); setSelected(s.job); setRespec(false); }}>試睇{SPECIALIZATIONS[id].name}</Btn></div>)}
     </div>}
     {cur.tier === 2 && s.specialization && <div className="hint">專精已選定。下次轉生可以試另一套玩法。</div>}
     {selected && <div className="job-selection" ref={selection} key={`${selected}-${spec}`}>

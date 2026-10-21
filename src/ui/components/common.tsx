@@ -4,6 +4,14 @@ import { fmt } from "../../core/format";
 import { sfx, buzz } from "../../services/feedback";
 import type { Item } from "../../core/types";
 import { RARITY_COLOR } from "../theme";
+import { art } from "../art";
+
+// Cut art sprite. Missing → nothing (never broken img).
+export function Sprite({ name, size, className = "" }: { name: string; size?: number; className?: string }) {
+  const src = art(name);
+  if (!src) return null;
+  return <img className={`sprite ${className}`} src={src} alt="" draggable={false} style={size ? { width: size, height: size } : undefined} />;
+}
 
 type BtnColor = "green" | "orange" | "blue" | "purple" | "red" | "gray" | "gold";
 

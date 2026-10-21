@@ -33,19 +33,6 @@
     "bytes": 1825537
   },
   {
-    "file": "round-1/04-specialization-icons.png",
-    "size": [
-      1536,
-      1024
-    ],
-    "mode": "RGBA",
-    "alpha_extrema": [
-      0,
-      254
-    ],
-    "bytes": 1802986
-  },
-  {
     "file": "round-2/01-kuro-six-states.png",
     "size": [
       1536,
@@ -57,6 +44,19 @@
       254
     ],
     "bytes": 1411502
+  },
+  {
+    "file": "round-1/04-specialization-icons.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      254
+    ],
+    "bytes": 1802986
   },
   {
     "file": "round-2/02-combat-action-board.png",
@@ -116,5 +116,18 @@
       255
     ],
     "bytes": 1623035
+  },
+  {
+    "file": "round-1/05-utility-and-equipment-icons.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      254
+    ],
+    "bytes": 1690375
   }
 ]

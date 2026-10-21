@@ -37,7 +37,7 @@ export function TowerPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (!run || !canvas.current) return;
-    const r = new BattleRenderer(canvas.current, () => run.state);
+    const r = new BattleRenderer(canvas.current, () => run.state, "bg-tower");
     encounter.current?.scrollIntoView({ block: "start" });
     renderer.current = r;
     const resize = new ResizeObserver(() => {
