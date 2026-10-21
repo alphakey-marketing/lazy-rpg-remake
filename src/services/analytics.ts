@@ -13,7 +13,7 @@ const CONFIG = {
   measurementId: "G-JPZBSRSQKB",
 };
 
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.3.0";
 
 type Params = Record<string, string | number | boolean>;
 
@@ -39,7 +39,7 @@ export function playerId(): string {
   }
 }
 
-async function getApp(): Promise<FirebaseApp> {
+export async function getApp(): Promise<FirebaseApp> {
   if (app) return app;
   const { initializeApp } = await import("firebase/app");
   app = initializeApp(CONFIG);

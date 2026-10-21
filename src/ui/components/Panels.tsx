@@ -1,3 +1,4 @@
+import { CloudCard } from "./CloudPanel";
 import { useState } from "react";
 import {
   CORRUPTION, DAILY_ALL_CLAIMED_BONUS, DAILY_QUESTS, GEM_SHOP, LOGIN_REWARDS, PerkId, RARITIES, Rarity, REBIRTH, REBIRTH_PERKS, TRAINING, TrainingId,
@@ -295,6 +296,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           {RARITIES.slice(1, 5).map((r) => <option key={r} value={r}>{RARITY_NAME[r]}</option>)}
         </select>
       </div>
+      <CloudCard />
       <div className="stats-list">
         <div>總擊殺 {fmt(s.life.kills)} · Boss {fmt(s.life.bossKills)}</div>
         <div>最高關卡 {s.life.bestStage} · 轉生 {s.life.rebirths} 次</div>
@@ -305,7 +307,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         store.hardReset();
         onClose();
       }}>刪除存檔 {reset > 0 ? `(${3 - reset})` : ""}</Btn>
-      <div className="hint">Lazy RPG Remake v0.1 · 原創內容</div>
+      <div className="hint">Lazy RPG Remake v0.3 · 原創內容</div>
     </Sheet>
   );
 }

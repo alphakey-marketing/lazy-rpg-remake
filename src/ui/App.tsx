@@ -24,6 +24,7 @@ import { Dialogue, KuroButton, KuroPanel, pendingStory } from "./components/Kuro
 import { TowerPanel } from "./components/TowerPanel";
 import { BestiaryPanel } from "./components/BestiaryPanel";
 import { FeedbackPanel } from "./components/FeedbackPanel";
+import { BindNudge, ConflictModal } from "./components/CloudPanel";
 import { trackPanel } from "./analyticsWatch";
 import { BESTIARY, BESTIARY_STAT_NAME } from "../config/bestiary";
 import { bestiaryTier } from "../core/bestiary";
@@ -218,6 +219,8 @@ export function App() {
       {reread && <Dialogue key={"r" + reread.title} title={reread.title} lines={reread.lines} onDone={() => setReread(null)} />}
       {!promotion && !store.offline && panel === null && !story && <Tutorial open={setPanel} />}
       {promotion && <div className="promotion" role="status" style={{ ["--jc" as any]: JOBS[s.job].color }}><div className="promotion-ring">{jobRoute(s.job) === "blade" ? "🛡️" : jobRoute(s.job) === "arcanist" ? "🔮" : "🏹"}</div><span>轉職完成</span><strong>{JOB_NAME[s.job]}</strong><p>{JOB_PLAYSTYLE[jobRoute(s.job)].hook}</p><small>新技能即將登場！</small></div>}
+      {!store.offline && !story && panel === null && <BindNudge onOpenSettings={() => setPanel("settings")} />}
+      <ConflictModal />
       <Toasts />
     </div>
   );

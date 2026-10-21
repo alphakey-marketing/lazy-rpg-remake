@@ -686,3 +686,18 @@ select { font-family: inherit; font-size: 15px; border: 3px solid var(--ink); bo
 .fb-mood.on { border-color: #ff9b3d; background: #fff3e0; transform: scale(1.05); }
 .fb-text { width: 100%; box-sizing: border-box; border: 2px solid #e4dccb; border-radius: 12px; padding: 8px 10px; font: inherit; font-size: 14px; resize: vertical; margin-bottom: 6px; }
 .fb-note { font-size: 11px; color: #8a7fa0; margin-bottom: 10px; }
+
+/* ── Cloud save ───────────────────────────────────────── */
+.cloud-card { background: #2a1f4a; border-radius: 14px; padding: 12px; margin: 10px 0; border: 2px solid #4a3a7a; }
+.cloud-top { display: flex; gap: 10px; align-items: center; }
+.cloud-icon { font-size: 28px; }
+.cloud-main .rc-title { color: #fff; }
+.cloud-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cloud-main small { color: #b9b0d8; font-size: 12px; overflow-wrap: anywhere; }
+.cloud-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.cloud-hint { color: #b9b0d8; font-size: 11px; flex-basis: 100%; }
+.cf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.cf-box { background: #2a1f4a; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #e8ecf5; }
+.cf-box small { color: #b9b0d8; font-size: 11px; margin-bottom: 6px; }
+.cf-title { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+.cf-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; align-items: center; }

@@ -82,6 +82,15 @@ First-session pacing, tower reward rules and validation details: [first-session 
 - The 💬 意見 button writes to the Firestore `feedback` collection. Rules in `firestore.rules` allow create only, so clients cannot read it. Read it in the Firebase console under Firestore.
 - To update the rules: `firebase deploy --only firestore:rules`.
 
+## Cloud save
+
+- A guest login happens automatically with Firebase Anonymous Auth, so the player never needs to press anything. The save is backed up to Firestore `saves/{uid}` every 90 seconds and whenever the app is hidden.
+- Settings → 雲端存檔 → 綁定 Google links the Google account to the same uid, so progress is kept and comes back after changing device. This is web only; the APK version is guest-only for now and needs a native Google sign-in plugin plus the SHA-1 fingerprint.
+- When the local and cloud saves differ, the player chooses which one to keep in a modal. A fresh install takes the cloud save automatically.
+- After reaching stage 15, a guest on the web sees a one-time prompt to bind Google.
+- Rules allow a player to read and write only their own save, up to 800KB. The GitHub Pages domain is added to the Auth authorized domains list.
+- Code is in `src/ui/cloudSync.ts` and `src/ui/components/CloudPanel.tsx`.
+
 ## Share / deploy
 
 - Web (for friends to test): https://alphakey-marketing.github.io/lazy-rpg-remake/

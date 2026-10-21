@@ -151,8 +151,27 @@ class GameStore {
     }
   };
 
+  exportSave(): string {
+    this.state.lastSeen = Date.now();
+    return serialize(this.state);
+  }
+
+  // replace whole state (cloud save). Bad json → throw, keep old state.
+  loadSave(json: string) {
+    const now = Date.now();
+    const s = deserialize(json, now);
+    this.state = s;
+    this.rng = createRng(s.seed);
+    this.offline = null;
+    this.catchUp(now);
+    ensureDaily(this.state, now);
+    setFeedback(s.settings.sound, s.settings.haptics);
+    this.notify(true);
+    this.save();
+  }
+
   hardReset() {
-    localStorage.removeItem(KEY);
+    try { localStorage.removeItem(KEY); } catch { /* no storage */ }
     this.state = newGame(Date.now());
     this.rng = createRng(this.state.seed);
     this.offline = null;

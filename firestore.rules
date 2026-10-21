@@ -10,6 +10,16 @@ service cloud.firestore {
         && request.resource.data.at == request.time;
       allow read, update, delete: if false;
     }
+    // Cloud save: owner only. Guest (anonymous) + Google both have uid.
+    match /saves/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["data", "meta", "at"])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 800000
+        && request.resource.data.meta is map
+        && request.resource.data.at == request.time;
+    }
     match /{document=**} {
       allow read, write: if false;
     }
