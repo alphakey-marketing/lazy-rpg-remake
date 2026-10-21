@@ -11,7 +11,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "balance": "vite-node scripts/balance.ts",
-    "android": "npm run build && npx cap sync android && cd android && gradlew.bat assembleDebug && D:AndroidSdkplatform-toolsadb.exe install -r app\buildoutputsapkdebugapp-debug.apk"
+    "android": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleDebug && \"D:/Android/Sdk/platform-tools/adb.exe\" install -r app/build/outputs/apk/debug/app-debug.apk"
   },
   "dependencies": {
     "@capacitor/android": "7.2.0",
