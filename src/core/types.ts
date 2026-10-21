@@ -45,6 +45,7 @@ export interface DailyState {
   progress: Record<DailyQuestId, number>;
   claimed: Record<DailyQuestId, boolean>;
   bonusClaimed: boolean;
+  ads: number; // rewarded ad watched today (free gem)
 }
 
 export interface LoginState {

@@ -267,3 +267,22 @@ export function setAutoSalvage(state: GameState, r: Rarity | null) {
 export function rarityAtLeast(a: Rarity, b: Rarity) {
   return rarityIndex(a) >= rarityIndex(b);
 }
+
+export function buyCharm(state: GameState): boolean {
+  if (state.gems < GEM_SHOP.charmCost) return false;
+  state.gems -= GEM_SHOP.charmCost;
+  state.protectCharms++;
+  return true;
+}
+
+export function adGemsLeft(state: GameState, now: number): number {
+  ensureDaily(state, now);
+  return Math.max(0, GEM_SHOP.adsPerDay - (state.daily.ads ?? 0));
+}
+
+export function grantAdGems(state: GameState, now: number): boolean {
+  if (adGemsLeft(state, now) <= 0) return false;
+  state.daily.ads = (state.daily.ads ?? 0) + 1;
+  state.gems += GEM_SHOP.adGems;
+  return true;
+}

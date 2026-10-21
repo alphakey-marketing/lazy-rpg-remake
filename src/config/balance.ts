@@ -172,4 +172,7 @@ export const LOGIN_REWARDS = [
 export const GEM_SHOP = {
   timeWarpHours: 2,
   timeWarpCost: 50,
+  charmCost: 20, // protect charm
+  adGems: 10, // free gem per ad
+  adsPerDay: 5,
 };

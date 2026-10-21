@@ -16,7 +16,7 @@ export function freshDaily(now: number): DailyState {
     progress[q.id] = 0;
     claimed[q.id] = false;
   }
-  return { dayKey: dayKey(now), progress, claimed, bonusClaimed: false };
+  return { dayKey: dayKey(now), progress, claimed, bonusClaimed: false, ads: 0 };
 }
 
 export function ensureDaily(state: GameState, now: number): void {
