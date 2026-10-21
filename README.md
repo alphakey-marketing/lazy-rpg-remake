@@ -7,7 +7,7 @@ Idle RPG for phones, portrait layout. Remake of `lazy-rpg-1` with a new core and
 ```bash
 npm install
 npm run dev        # http://localhost:5173 (also reachable from a phone on the same LAN)
-npm test           # 20 core tests
+npm test           # 27 core tests
 npm run build      # typecheck + production build to dist/
 npx vite-node scripts/balance.ts arcanist 12          # bot plays 12h, prints pacing
 REBIRTH=1 npx vite-node scripts/balance.ts ranger 10  # same, with rebirth
@@ -39,6 +39,8 @@ The sim emits events (`heroHit`, `kill`, `loot`, `bossWin`…) and the renderer 
 - Gold goes into training (a ×1.3 milestone every 25 levels). Gear has 6 rarities with auto-equip and auto-salvage.
 - Refine goes up to +15 and **never destroys** an item. A failure at +5 or higher drops one level; a charm prevents that.
 - Job change at Lv12 and Lv45. Each job has its own skill.
+- **Kuro the black cat**: tap 🐾 for a claw strike (auto from Kuro Lv5). Bosses drop 🐟 fish; feed fish to level Kuro (stronger claw, +gold, +offline cap). Pet Kuro every 4h for fish plus a 30 min +25% gold/exp blessing; after 24h Kuro sulks and petting gives double fish.
+- **Story** (light, comedy): Kuro intro dialogue on each new chapter, a boss line on chapter bosses, battle chatter bubbles, and one memory fragment unlocked per rebirth (why can the cat talk?). Text lives in `src/config/story.ts`; reread it in the 黑貓 → 故事 tab.
 - Corruption (Kuro's pact), from stage 15: stronger monsters, better loot.
 - Rebirth, from stage 40: soul shards, then permanent perks.
 - Daily quests, 7-day login, gem shop and rewarded ads (offline ×2, free gems 5 times a day).

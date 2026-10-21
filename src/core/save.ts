@@ -14,7 +14,8 @@ function fill<T>(def: T, got: any): T {
 }
 
 const MIGRATIONS: Record<number, (s: any) => any> = {
-  // 1 → 2: add here when save shape change
+  // 1 → 2: add kuro. default fill do the work, nothing to move.
+  1: (s) => s,
 };
 
 export function serialize(state: GameState): string {

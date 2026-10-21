@@ -6,7 +6,7 @@ type Open = (p: "train" | "hero" | null) => void;
 // Short guide. Each step wait for condition, Kuro talk. Skip any time.
 const STEPS: { text: string; when: (s: ReturnType<typeof useGame>) => boolean; done: (s: ReturnType<typeof useGame>) => boolean; cta?: string; panel?: "train" | "hero" }[] = [
   {
-    text: "喵！我係 Kuro。勇者會自己打怪，你唔使做嘢 😼",
+    text: "勇者會自己打怪，你坐定定睇就得。我都係咁 😼",
     when: () => true,
     done: () => false,
     cta: "好！",
@@ -23,6 +23,12 @@ const STEPS: { text: string; when: (s: ReturnType<typeof useGame>) => boolean; d
     cta: "明白",
   },
   {
+    text: "撳左下角 🐾，我會飛過去抓佢！打 Boss 時最好用。",
+    when: (s) => s.life.bossKills > 0,
+    done: () => false,
+    cta: "抓！",
+  },
+  {
     text: "拎到裝備會自動著上。去「英雄」睇下同精煉啦！",
     when: (s) => s.life.bossKills > 0 && Object.values(s.gear).some(Boolean),
     done: () => false,
@@ -30,7 +36,7 @@ const STEPS: { text: string; when: (s: ReturnType<typeof useGame>) => boolean; d
     panel: "hero",
   },
   {
-    text: "熄咗 App 我都會幫你打，最多 8 個鐘。記得返嚟領獎！",
+    text: "熄咗 App 我都會幫你打，最多 8 個鐘。記得返嚟領獎…同摸我！",
     when: (s) => s.stage >= 4,
     done: () => false,
     cta: "收到",

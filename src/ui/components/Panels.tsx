@@ -317,6 +317,7 @@ export function OfflineModal({ sum }: { sum: OfflineSummary }) {
         <div>🚩<b>{sum.stagesGained >= 0 ? "+" : ""}{sum.stagesGained}</b><small>關卡</small></div>
         <div>🎁<b>{sum.items}</b><small>裝備</small></div>
       </div>
+      {sum.fish > 0 && <div className="off-best" style={{ color: "#7fe3ff" }}>🐟 Kuro 收到魚乾 +{sum.fish}</div>}
       {sum.bestRarity && (
         <div className="off-best" style={{ color: RARITY_COLOR[sum.bestRarity] }}>最佳掉落：{RARITY_NAME[sum.bestRarity]}</div>
       )}

@@ -1,4 +1,4 @@
-import { BALANCE, ITEM, REBIRTH_PERKS, TRAINING, TRAINING_MILESTONE } from "../config/balance";
+import { BALANCE, ITEM, KURO, REBIRTH_PERKS, TRAINING, TRAINING_MILESTONE } from "../config/balance";
 import { JOBS, SLOTS, Slot } from "../config/content";
 import { corruptionTier } from "./formulas";
 import { itemMain } from "./items";
@@ -68,12 +68,16 @@ export function computeStats(state: GameState, gearOverride?: Partial<Record<Slo
   crit = Math.min(H.maxCrit, crit);
   const aps = Math.min(H.maxAps, H.baseAps * job.apsMult * (1 + apsPct));
   const corr = corruptionTier(state.corruption);
-  const goldMult = (1 + goldPct) * (1 + p.soulGold * REBIRTH_PERKS.soulGold.perLevel) * corr.reward;
-  const expMult = (1 + expPct) * (1 + p.soulExp * REBIRTH_PERKS.soulExp.perLevel) * corr.reward;
+  const k = state.kuro;
+  const bless = k.buffLeft > 0 ? 1 + KURO.buffMult : 1;
+  const kuroGold = 1 + (k.level - 1) * KURO.goldPerLevel;
+  const goldMult = (1 + goldPct) * (1 + p.soulGold * REBIRTH_PERKS.soulGold.perLevel) * corr.reward * kuroGold * bless;
+  const expMult = (1 + expPct) * (1 + p.soulExp * REBIRTH_PERKS.soulExp.perLevel) * corr.reward * bless;
 
   const skill = job.skill;
   const critFactor = 1 + crit * (critDmg - 1);
-  const dps = atk * critFactor * (aps + (skill.hits * skill.mult) / skill.cooldown);
+  const kuroDps = KURO.strikeMult(k.level) / KURO.cooldown(k.level);
+  const dps = atk * critFactor * (aps + (skill.hits * skill.mult) / skill.cooldown + kuroDps);
   const ehp = maxHp / (1 - def);
   const power = Math.floor(dps * 6 + ehp * 0.6);
 

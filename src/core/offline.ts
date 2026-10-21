@@ -1,4 +1,4 @@
-import { BALANCE, Rarity, REBIRTH_PERKS } from "../config/balance";
+import { BALANCE, KURO, Rarity, REBIRTH_PERKS } from "../config/balance";
 import { bumpDaily } from "./daily";
 import { rarityIndex, salvageValue } from "./items";
 import { createRng } from "./rng";
@@ -6,7 +6,8 @@ import { tick } from "./sim";
 import type { GameState, OfflineSummary } from "./types";
 
 export function offlineCapSeconds(state: GameState): number {
-  return (BALANCE.offlineBaseCapHours + state.perks.offlineCap * REBIRTH_PERKS.offlineCap.perLevel) * 3600;
+  const kuro = (state.kuro.level - 1) * KURO.offlineHoursPerLevel;
+  return (BALANCE.offlineBaseCapHours + state.perks.offlineCap * REBIRTH_PERKS.offlineCap.perLevel + kuro) * 3600;
 }
 
 // Fast-forward real sim. Same rule as live → no fake number.
@@ -19,7 +20,7 @@ export function runOffline(state: GameState, seconds: number): OfflineSummary {
   const startStones = state.stones;
   const sum: OfflineSummary = {
     seconds, cappedSeconds: capped, kills: 0, bossKills: 0, gold: 0, exp: 0,
-    levelsGained: 0, stagesGained: 0, items: 0, salvagedStones: 0, bestRarity: null,
+    levelsGained: 0, stagesGained: 0, items: 0, salvagedStones: 0, bestRarity: null, fish: 0,
   };
   let best = -1;
   const dt = BALANCE.offlineTickSeconds;
@@ -31,6 +32,9 @@ export function runOffline(state: GameState, seconds: number): OfflineSummary {
           sum.kills++;
           sum.exp += e.exp;
           if (e.enemy.kind !== "normal") sum.bossKills++;
+          break;
+        case "fish":
+          sum.fish += e.n;
           break;
         case "loot": {
           sum.items++;

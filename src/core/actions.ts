@@ -1,5 +1,5 @@
 import {
-  CORRUPTION, DAILY_ALL_CLAIMED_BONUS, DAILY_QUESTS, DailyQuestId, GEM_SHOP, LOGIN_REWARDS,
+  CORRUPTION, DAILY_ALL_CLAIMED_BONUS, DAILY_QUESTS, DailyQuestId, GEM_SHOP, KURO, LOGIN_REWARDS,
   PerkId, Rarity, REBIRTH, REBIRTH_PERKS, REFINE, TrainingId,
 } from "../config/balance";
 import { JOBS, JobId, Slot } from "../config/content";
@@ -8,7 +8,7 @@ import { trainingCost, trainingMaxed } from "./formulas";
 import { rarityIndex, salvageValue } from "./items";
 import { newGame } from "./newGame";
 import type { Rng } from "./rng";
-import { Emit, estimateGoldPerSec, noEmit, startBoss } from "./sim";
+import { Emit, estimateGoldPerSec, kuroStrike, noEmit, startBoss } from "./sim";
 import { computeStats, powerWith } from "./stats";
 import type { GameState, Item } from "./types";
 
@@ -180,6 +180,7 @@ export function rebirth(state: GameState, now: number): number {
     daily: state.daily,
     login: state.login,
     bestiary: state.bestiary,
+    kuro: { ...state.kuro, strikeCd: 0 },
     nextItemId: state.nextItemId,
     createdAt: state.createdAt,
     tutorialStep: -1,
@@ -285,4 +286,53 @@ export function grantAdGems(state: GameState, now: number): boolean {
   state.daily.ads = (state.daily.ads ?? 0) + 1;
   state.gems += GEM_SHOP.adGems;
   return true;
+}
+
+// ── Kuro ────────────────────────────────────────────────────────────
+// player tap claw button
+export function kuroTap(state: GameState, rng: Rng, emit: Emit = noEmit): boolean {
+  return kuroStrike(state, computeStats(state), rng, emit, false);
+}
+
+export function kuroFeedCost(state: GameState): number {
+  return KURO.feedCost(state.kuro.level);
+}
+
+export function feedKuro(state: GameState): boolean {
+  const k = state.kuro;
+  if (k.level >= KURO.maxLevel) return false;
+  const cost = kuroFeedCost(state);
+  if (k.fish < cost) return false;
+  k.fish -= cost;
+  k.level++;
+  return true;
+}
+
+export type KuroMood = "happy" | "wantPet" | "sulk";
+
+export function kuroMood(state: GameState, now: number): KuroMood {
+  const k = state.kuro;
+  if (!k.lastPet) return "wantPet";
+  const h = (now - k.lastPet) / 3600_000;
+  if (h >= KURO.sulkHours) return "sulk";
+  if (h >= KURO.petCooldownHours) return "wantPet";
+  return "happy";
+}
+
+// ms until next pet allowed (0 = can pet now)
+export function petWaitMs(state: GameState, now: number): number {
+  const k = state.kuro;
+  if (!k.lastPet) return 0;
+  return Math.max(0, k.lastPet + KURO.petCooldownHours * 3600_000 - now);
+}
+
+// pet → fish + blessing. Sulk cat give more (welcome back gift).
+export function petKuro(state: GameState, now: number): { fish: number; sulk: boolean } | null {
+  if (petWaitMs(state, now) > 0) return null;
+  const sulk = kuroMood(state, now) === "sulk";
+  const fish = KURO.petFish(state.kuro.level) * (sulk ? KURO.sulkFishMult : 1);
+  state.kuro.fish += fish;
+  state.kuro.lastPet = now;
+  state.kuro.buffLeft = KURO.buffSeconds;
+  return { fish, sulk };
 }

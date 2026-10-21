@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { BALANCE, CORRUPTION, REBIRTH } from "../config/balance";
+import { BALANCE, CORRUPTION, KURO, REBIRTH } from "../config/balance";
+import type { Line } from "../config/story";
 import { BIOMES } from "../config/content";
-import { availableJobs, buyTraining, canChangeJob, canRebirth, challengeBoss, corruptionUnlocked, rebirthShards } from "../core/actions";
+import { availableJobs, buyTraining, canChangeJob, canRebirth, challengeBoss, corruptionUnlocked, kuroFeedCost, petWaitMs, rebirthShards } from "../core/actions";
 import { dailyClaimable, loginClaimable } from "../core/daily";
 import { fmt } from "../core/format";
 import { biomeIndex, chapterOf, expToNext, stageInChapter, trainingCost } from "../core/formulas";
@@ -17,13 +18,15 @@ import { HeroPanel } from "./components/HeroPanel";
 import { CorruptionPanel, DailyPanel, LoginPanel, OfflineModal, RebirthPanel, SettingsPanel, ShopPanel, TrainPanel } from "./components/Panels";
 import { toast, Toasts } from "./components/Toasts";
 import { Tutorial } from "./components/Tutorial";
+import { Dialogue, KuroButton, KuroPanel, pendingStory } from "./components/KuroPanel";
 
-type Panel = null | "hero" | "train" | "rebirth" | "shop" | "daily" | "login" | "corruption" | "settings";
+type Panel = null | "hero" | "train" | "kuro" | "rebirth" | "shop" | "daily" | "login" | "corruption" | "settings";
 
 export function App() {
   const s = useGame();
   const [panel, setPanel] = useState<Panel>(null);
   const [powerPop, setPowerPop] = useState(0);
+  const [reread, setReread] = useState<{ title: string; lines: Line[] } | null>(null);
   const st = computeStats(s);
   const lastPower = useRef(st.power);
 
@@ -48,6 +51,7 @@ export function App() {
       case "bossWin": sfx.win(); buzz(50); break;
       case "bossFail": sfx.fail(); break;
       case "bagFull": toast("背包滿咗！自動分解", "#ff9b3d"); break;
+      case "kuroStrike": if (e.auto) sfx.hit(true); break;
       case "loot": {
         const tier = rarityIndex(e.item.rarity);
         if (tier >= 2) sfx.loot(tier);
@@ -66,7 +70,10 @@ export function App() {
     hero: availableJobs(s).some((j) => canChangeJob(s, j)) || s.bag.some((it) => powerWith(s, it) > st.power),
     train: s.gold >= trainingCost("atk", s.training.atk),
     rebirth: canRebirth(s) && rebirthShards(s) >= 20,
+    kuro: petWaitMs(s, now) === 0 || (s.kuro.level < KURO.maxLevel && s.kuro.fish >= kuroFeedCost(s)),
   };
+  // story pop only on main screen, after offline popup
+  const story = !store.offline && panel === null ? pendingStory(s) : null;
 
   const biome = BIOMES[biomeIndex(s.stage)];
   const expNeed = expToNext(s.level);
@@ -112,10 +119,11 @@ export function App() {
           <SideIcon icon="🛒" label="商店" onClick={() => setPanel("shop")} />
         </div>
         <div className="side right">
-          <SideIcon icon="🐈‍⬛" label="腐化" locked={!corruptionUnlocked(s)} lockText={`${CORRUPTION.unlockStage}關`} onClick={() => setPanel("corruption")} />
+          <SideIcon icon="🌑" label="腐化" locked={!corruptionUnlocked(s)} lockText={`${CORRUPTION.unlockStage}關`} onClick={() => setPanel("corruption")} />
           <SideIcon icon="🔮" label="轉生" dot={dots.rebirth} locked={s.life.bestStage < REBIRTH.unlockStage && s.life.rebirths === 0} lockText={`${REBIRTH.unlockStage}關`} onClick={() => setPanel("rebirth")} />
           <SideIcon icon="⚙️" label="設定" onClick={() => setPanel("settings")} />
         </div>
+        <KuroButton />
         <div className="power-plate">
           <span className="pw-label">戰力</span>
           <span className="pw-val">{fmt(st.power)}</span>
@@ -129,12 +137,13 @@ export function App() {
         <NavBtn icon="⚔️" label="戰鬥" on={panel === null} onClick={() => setPanel(null)} />
         <NavBtn icon="🧝" label="英雄" on={panel === "hero"} dot={dots.hero} onClick={() => setPanel("hero")} />
         <NavBtn icon="💪" label="訓練" on={panel === "train"} dot={dots.train} onClick={() => setPanel("train")} />
-        <NavBtn icon="🔮" label="轉生" on={panel === "rebirth"} dot={dots.rebirth} onClick={() => setPanel("rebirth")} />
+        <NavBtn icon="🐈‍⬛" label="黑貓" on={panel === "kuro"} dot={dots.kuro} onClick={() => setPanel("kuro")} />
         <NavBtn icon="💎" label="商店" on={panel === "shop"} onClick={() => setPanel("shop")} />
       </nav>
 
       {panel === "hero" && <HeroPanel onClose={() => setPanel(null)} />}
       {panel === "train" && <TrainPanel onClose={() => setPanel(null)} />}
+      {panel === "kuro" && <KuroPanel onClose={() => setPanel(null)} onStory={(title, lines) => setReread({ title, lines })} />}
       {panel === "rebirth" && <RebirthPanel onClose={() => setPanel(null)} />}
       {panel === "shop" && <ShopPanel onClose={() => setPanel(null)} />}
       {panel === "daily" && <DailyPanel onClose={() => setPanel(null)} />}
@@ -143,7 +152,9 @@ export function App() {
       {panel === "settings" && <SettingsPanel onClose={() => setPanel(null)} />}
 
       {store.offline && <OfflineModal sum={store.offline} />}
-      {!store.offline && panel === null && <Tutorial open={setPanel} />}
+      {story && <Dialogue key={story.title} title={story.title} lines={story.lines} onDone={story.done} />}
+      {reread && <Dialogue key={"r" + reread.title} title={reread.title} lines={reread.lines} onDone={() => setReread(null)} />}
+      {!store.offline && panel === null && !story && <Tutorial open={setPanel} />}
       <Toasts />
     </div>
   );

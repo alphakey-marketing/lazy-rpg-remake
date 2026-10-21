@@ -1,6 +1,7 @@
 // Canvas2D battle view. Read state every frame, react to sim event for juice.
 // Interface small → later swap to PixiJS / Spine without touch game logic.
 import { BIOMES, FAMILIES, JOBS } from "../../config/content";
+import { BARKS, CHAPTERS } from "../../config/story";
 import { biomeIndex, biomeLoop } from "../../core/formulas";
 import { fmt } from "../../core/format";
 import { rarityIndex } from "../../core/items";
@@ -34,6 +35,9 @@ export class BattleRenderer {
   private enemyEnter = 1; // 0..1 slide in
   private dying: { enemy: Enemy; life: number } | null = null;
   private levelGlow = 0;
+  private kuroDash = 0; // 1 → 0, Kuro fly to enemy & back
+  private say: { text: string; life: number } | null = null;
+  private idleSay = 12; // sec to next random chatter
 
   constructor(private canvas: HTMLCanvasElement, private getState: () => GameState) {
     this.c = canvas.getContext("2d")!;
@@ -73,6 +77,18 @@ export class BattleRenderer {
         this.enemyFlash = 1;
         this.addText(ex, gy - u * 3, fmt(Math.max(1, Math.round(e.dmg))), e.crit ? "#ff9cf5" : "#c9a7ff", e.crit ? 38 : 32, 1.3);
         break;
+      case "kuroStrike":
+        this.kuroDash = 1;
+        this.fx.push({ kind: "claw", life: 0.55, max: 0.55, hits: e.hits });
+        this.shake = Math.max(this.shake, e.auto ? 6 : 9);
+        this.enemyFlash = 1;
+        this.addText(ex, gy - u * 3.6, fmt(Math.max(1, Math.round(e.dmg))), e.crit ? "#ff7ad9" : "#d59bff", e.crit ? 40 : 34, 1.3, "🐾 ");
+        this.burst(ex, gy - u, 14, "#c77dff", 5);
+        if (!e.auto || Math.random() < 0.25) this.kuroSay(pick(BARKS.strike), 1.2);
+        break;
+      case "fish":
+        this.addText(this.heroX - u * 1.25, gy - u * 3.4, "+" + e.n, "#7fe3ff", 20, 1.4, "🐟 ");
+        break;
       case "enemyHit":
         this.hurt = 1;
         this.addText(this.heroX + u * 0.2, gy - u * 2.2, "-" + fmt(Math.max(1, Math.round(e.dmg))), "#ff5a5a", 17);
@@ -91,28 +107,41 @@ export class BattleRenderer {
       case "loot": {
         const tier = rarityIndex(e.item.rarity);
         if (tier >= 2) this.beams.push({ x: ex + (Math.random() - 0.5) * u, color: RARITY_COLOR[e.item.rarity], tier, life: 1.6, max: 1.6 });
+        if (tier >= 4) this.kuroSay(pick(BARKS.bigLoot));
         break;
       }
       case "levelUp":
         this.levelGlow = 1.2;
         this.burst(this.heroX, gy - u, 24, "#ffe066", 5);
         this.addText(this.heroX, gy - u * 3.4, "LEVEL UP!", "#ffe066", 26, 1.6);
+        if (Math.random() < 0.3) this.kuroSay(pick(BARKS.levelUp));
         break;
       case "bossStart":
         this.banner = { text: e.kind === "chapterBoss" ? "章節魔王" : "BOSS 戰", sub: "30 秒內擊倒！", color: "#ff4d6d", life: 1.8, max: 1.8 };
+        if (e.kind === "chapterBoss") {
+          const ch = CHAPTERS[biomeIndex(this.getState().stage)];
+          this.kuroSay(ch.boss, 3.2);
+        }
         this.shake = 10;
         break;
       case "bossWin":
         this.banner = { text: "勝利！", sub: `第 ${e.stage} 關突破`, color: "#ffd23f", life: 1.8, max: 1.8 };
         this.burst(this.W / 2, this.H * 0.4, 60, "#ffd23f", 8);
+        if (Math.random() < 0.4) this.kuroSay(pick(BARKS.bossWin));
         break;
       case "bossFail":
         this.banner = { text: e.reason === "timeout" ? "時間到…" : "被打敗…", sub: "再練下先", color: "#9aa4c0", life: 1.6, max: 1.6 };
         break;
       case "heroDown":
         this.banner = { text: "撤退", sub: `返回第 ${e.retreatTo} 關`, color: "#9aa4c0", life: 1.6, max: 1.6 };
+        this.kuroSay(pick(BARKS.heroDown));
         break;
     }
+  }
+
+  kuroSay(text: string, life = 2.2) {
+    this.say = { text, life };
+    this.idleSay = 18 + Math.random() * 20;
   }
 
   private addText(x: number, y: number, text: string, color: string, size: number, life = 0.9, prefix = "") {
@@ -144,6 +173,13 @@ export class BattleRenderer {
     this.enemyEnter = Math.min(1, this.enemyEnter + dt * 4);
     this.shake = Math.max(0, this.shake - dt * 30);
     this.levelGlow = Math.max(0, this.levelGlow - dt);
+    this.kuroDash = Math.max(0, this.kuroDash - dt * 2.2);
+    if (this.say) {
+      this.say.life -= dt;
+      if (this.say.life <= 0) this.say = null;
+    }
+    this.idleSay -= dt;
+    if (this.idleSay <= 0) this.kuroSay(pick(BARKS.idle));
     if (this.dying) {
       this.dying.life -= dt;
       if (this.dying.life <= 0) this.dying = null;
@@ -321,7 +357,20 @@ export class BattleRenderer {
       c.lineWidth = 6;
       c.stroke();
     }
-    drawKuro(c, this.heroX - u * 1.25, gy - u * 2.4, u * 0.55, this.t);
+    // Kuro: rest beside hero, dash arc to enemy on claw
+    const homeX = this.heroX - u * 1.25, homeY = gy - u * 2.4;
+    const d = this.kuroDash > 0 ? Math.sin((1 - this.kuroDash) * Math.PI) : 0;
+    const kx = homeX + (this.enemyX - u * 0.9 - homeX) * d;
+    const ky = homeY - Math.sin(d * Math.PI) * u * 0.8 + d * u * 0.9;
+    const blessed = s.kuro.buffLeft > 0;
+    if (blessed) {
+      c.beginPath();
+      c.arc(kx, ky, u * 0.75 + Math.sin(this.t * 4) * 2, 0, Math.PI * 2);
+      c.fillStyle = "rgba(255,214,102,0.25)";
+      c.fill();
+    }
+    drawKuro(c, kx, ky, u * 0.55 * (1 + s.kuro.level * 0.004), this.t);
+    if (this.say) this.drawSay(kx, ky - u * 0.7, this.say.text, this.say.life);
     drawHero(c, job, this.heroX, gy, u, this.t * (s.battle.enemy ? 1 : 2), this.lunge, this.hurt);
 
     // hero hp bar under feet
@@ -461,6 +510,29 @@ export class BattleRenderer {
           c.fillRect(ex - w, 0, w * 2, gy);
           break;
         }
+        case "claw": {
+          // 3 slash marks drawn fast, purple glow
+          c.lineCap = "round";
+          for (let i = 0; i < f.hits; i++) {
+            const p = Math.min(1, k * 3 - i * 0.35);
+            if (p <= 0) continue;
+            const ox = (i - 1) * u * 0.35;
+            const x0 = ex + ox - u * 0.6, y0 = gy - u * 2;
+            const x1 = ex + ox + u * 0.5, y1 = gy - u * 0.2;
+            c.beginPath();
+            c.moveTo(x0, y0);
+            c.lineTo(x0 + (x1 - x0) * p, y0 + (y1 - y0) * p);
+            c.strokeStyle = `rgba(214,140,255,${a})`;
+            c.shadowColor = "#b14dff";
+            c.shadowBlur = 16;
+            c.lineWidth = 7;
+            c.stroke();
+            c.strokeStyle = `rgba(255,255,255,${a})`;
+            c.lineWidth = 2.5;
+            c.stroke();
+          }
+          break;
+        }
         case "nova": {
           for (let i = 0; i < 3; i++) {
             c.beginPath();
@@ -547,6 +619,39 @@ export class BattleRenderer {
     c.restore();
   }
 
+  // speech bubble above Kuro, wrap long text
+  private drawSay(x: number, y: number, text: string, life: number) {
+    const c = this.c;
+    c.save();
+    c.globalAlpha = Math.min(1, life / 0.25);
+    c.font = `800 12px "Noto Sans TC", sans-serif`;
+    const maxW = Math.min(170, this.W * 0.5);
+    const lines: string[] = [];
+    let cur = "";
+    for (const ch of text) {
+      if (c.measureText(cur + ch).width > maxW) { lines.push(cur); cur = ch; } else cur += ch;
+    }
+    if (cur) lines.push(cur);
+    const w = Math.max(...lines.map((l) => c.measureText(l).width)) + 16;
+    const h = lines.length * 15 + 10;
+    const bx = Math.max(4, Math.min(this.W - w - 4, x - 14));
+    const by = Math.max(4, y - h - 8);
+    c.beginPath();
+    c.roundRect(bx, by, w, h, 9);
+    c.moveTo(x - 4, by + h);
+    c.lineTo(x, by + h + 8);
+    c.lineTo(x + 6, by + h);
+    c.fillStyle = "#fffaf0";
+    c.strokeStyle = OUTLINE;
+    c.lineWidth = 2.5;
+    c.fill();
+    c.stroke();
+    c.fillStyle = "#2a1a3e";
+    c.textBaseline = "top";
+    lines.forEach((l, i) => c.fillText(l, bx + 8, by + 6 + i * 15));
+    c.restore();
+  }
+
   private drawBossVignette(s: GameState) {
     const c = this.c, W = this.W, H = this.H;
     const pulse = 0.25 + Math.sin(this.t * 6) * 0.08;
@@ -613,4 +718,8 @@ function cloud(c: CanvasRenderingContext2D, x: number, y: number, r: number) {
   c.arc(x + r * 0.9, y + r * 0.2, r * 0.75, 0, Math.PI * 2);
   c.arc(x - r * 0.9, y + r * 0.25, r * 0.65, 0, Math.PI * 2);
   c.fill();
+}
+
+function pick<T>(a: T[]): T {
+  return a[Math.floor(Math.random() * a.length)];
 }

@@ -176,3 +176,24 @@ export const GEM_SHOP = {
   adGems: 10, // free gem per ad
   adsPerDay: 5,
 };
+
+// Kuro black cat. Boss drop fish → feed → Kuro level up.
+// Level give: stronger claw, auto claw (Lv5), more gold, longer offline.
+export const KURO = {
+  maxLevel: 50,
+  feedCost: (l: number) => Math.ceil(3 * Math.pow(1.16, l - 1)) + l, // fish for l → l+1
+  strikeMult: (l: number) => 8 + 1.5 * (l - 1), // total dmg = hero atk × this
+  strikeHits: 3,
+  cooldown: (l: number) => Math.max(8, 20 - 0.25 * (l - 1)), // sec
+  autoCastLevel: 5,
+  goldPerLevel: 0.02, // +2% gold per level after 1
+  offlineHoursPerLevel: 0.1, // +6 min offline cap per level after 1
+  fishPerBoss: (stage: number) => 1 + Math.floor(stage / 15),
+  chapterBossFishMult: 3,
+  petCooldownHours: 4,
+  sulkHours: 24, // no pet this long → Kuro sulk, pet give double fish
+  petFish: (l: number) => 3 + Math.floor(l / 2),
+  sulkFishMult: 2,
+  buffSeconds: 1800, // pet blessing length (sim time, offline also count down)
+  buffMult: 0.25, // blessing: gold & exp +25%
+};

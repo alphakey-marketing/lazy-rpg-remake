@@ -1,4 +1,4 @@
-import { BALANCE, ITEM, Rarity } from "../config/balance";
+import { BALANCE, ITEM, KURO, Rarity } from "../config/balance";
 import { JOBS } from "../config/content";
 import { bumpDaily } from "./daily";
 import { corruptionTier, expToNext, isChapterBossStage, killExp, killGold, makeEnemy } from "./formulas";
@@ -22,6 +22,10 @@ export function tick(state: GameState, dt: number, rng: Rng, emit: Emit = noEmit
   if (b.heroHp < 0) b.heroHp = st.maxHp;
   if (b.heroHp > st.maxHp) b.heroHp = st.maxHp;
   b.heroHp = Math.min(st.maxHp, b.heroHp + H.regenPerSec * st.maxHp * dt);
+
+  const k = state.kuro;
+  if (k.buffLeft > 0) k.buffLeft = Math.max(0, k.buffLeft - dt);
+  if (k.strikeCd > 0) k.strikeCd = Math.max(0, k.strikeCd - dt);
 
   if (!b.enemy) {
     b.spawnTimer -= dt;
@@ -58,6 +62,9 @@ export function tick(state: GameState, dt: number, rng: Rng, emit: Emit = noEmit
     emit({ t: "skill", skillId: sk.id, fx: sk.fx, hits: sk.hits, dmg: total, crit: anyCrit });
   }
 
+  // Kuro claw: auto when unlocked & switch on
+  if (k.auto && k.level >= KURO.autoCastLevel && k.strikeCd <= 0 && e.hp > 0) kuroStrike(state, st, rng, emit, true);
+
   if (e.hp <= 0) {
     onKill(state, st, rng, emit);
     return;
@@ -83,6 +90,25 @@ export function tick(state: GameState, dt: number, rng: Rng, emit: Emit = noEmit
     b.bossTimer -= dt;
     if (b.bossTimer <= 0) bossFail(state, st, "timeout", emit);
   }
+}
+
+// Kuro jump in, claw N time. Return false if not ready / no target.
+export function kuroStrike(state: GameState, st: HeroStats, rng: Rng, emit: Emit, auto: boolean): boolean {
+  const k = state.kuro;
+  const e = state.battle.enemy;
+  if (!e || e.hp <= 0 || k.strikeCd > 0) return false;
+  const per = (st.atk * KURO.strikeMult(k.level)) / KURO.strikeHits;
+  let total = 0;
+  let anyCrit = false;
+  for (let i = 0; i < KURO.strikeHits; i++) {
+    const crit = rng.next() < st.crit;
+    anyCrit ||= crit;
+    total += per * (crit ? st.critDmg : 1);
+  }
+  e.hp -= total;
+  k.strikeCd = KURO.cooldown(k.level);
+  emit({ t: "kuroStrike", dmg: total, crit: anyCrit, hits: KURO.strikeHits, auto });
+  return true;
 }
 
 function spawnNext(state: GameState, st: HeroStats, rng: Rng, emit: Emit) {
@@ -148,7 +174,10 @@ function onKill(state: GameState, st: HeroStats, rng: Rng, emit: Emit) {
     state.kills = 0;
     state.bossReady = false;
     b.heroHp = computeStats(state).maxHp;
+    const fish = KURO.fishPerBoss(cleared) * (e.kind === "chapterBoss" ? KURO.chapterBossFishMult : 1);
+    state.kuro.fish += fish;
     emit({ t: "bossWin", stage: cleared });
+    emit({ t: "fish", n: fish });
   }
 }
 

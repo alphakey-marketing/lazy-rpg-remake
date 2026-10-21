@@ -2,7 +2,7 @@
 import { newGame } from "../src/core/newGame";
 import { createRng } from "../src/core/rng";
 import { tick } from "../src/core/sim";
-import { buyTraining, canChangeJob, changeJob, canRebirth, rebirth, buyPerk, refine, refineCost, salvageWeaker, setCorruption, corruptionUnlocked } from "../src/core/actions";
+import { buyTraining, canChangeJob, changeJob, canRebirth, rebirth, buyPerk, refine, refineCost, salvageWeaker, setCorruption, corruptionUnlocked, feedKuro, petKuro } from "../src/core/actions";
 import { computeStats } from "../src/core/stats";
 import { fmt } from "../src/core/format";
 import type { JobId } from "../src/config/content";
@@ -40,6 +40,8 @@ for (let t = 0; t < total; t += dt) {
     if (canChangeJob(s, path)) changeJob(s, path);
     if (canChangeJob(s, second[path])) changeJob(s, second[path]);
     salvageWeaker(s);
+    while (feedKuro(s));
+    petKuro(s, t * 1000 + 1);
     const w = s.gear.weapon;
     if (w && w.refine < 10) {
       const c = refineCost(w);
@@ -67,7 +69,7 @@ for (let t = 0; t < total; t += dt) {
     console.log(
       `${String(checkpoints[ci] / 60).padStart(5)}m  stage ${String(s.stage).padStart(3)} (max ${s.maxStage})  lv ${String(s.level).padStart(3)}  ${s.job.padEnd(8)}  ` +
         `pow ${fmt(st.power).padStart(7)}  gold ${fmt(s.gold).padStart(7)}  train a${s.training.atk}/h${s.training.hp}  ` +
-        `wpn ${s.gear.weapon ? s.gear.weapon.rarity + "+" + s.gear.weapon.refine : "-"}  bag ${s.bag.length}  deaths ${deaths} bossFail ${bossFails}`,
+        `wpn ${s.gear.weapon ? s.gear.weapon.rarity + "+" + s.gear.weapon.refine : "-"}  bag ${s.bag.length}  kuro ${s.kuro.level}  deaths ${deaths} bossFail ${bossFails}`,
     );
     ci++;
   }

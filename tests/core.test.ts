@@ -4,11 +4,11 @@ import { newGame } from "../src/core/newGame";
 import { tick } from "../src/core/sim";
 import { runOffline, offlineCapSeconds } from "../src/core/offline";
 import { expToNext } from "../src/core/formulas";
-import { buyTraining, claimDaily, claimLogin, rebirth, refine, buyPerk } from "../src/core/actions";
+import { buyTraining, claimDaily, claimLogin, rebirth, refine, buyPerk, feedKuro, kuroTap, petKuro } from "../src/core/actions";
 import { generateItem } from "../src/core/items";
 import { serialize, deserialize } from "../src/core/save";
 import { fmt } from "../src/core/format";
-import { REFINE } from "../src/config/balance";
+import { KURO, REFINE } from "../src/config/balance";
 import type { SimEvent } from "../src/core/types";
 
 const T0 = new Date(2026, 0, 10, 12).getTime();
@@ -195,5 +195,74 @@ describe("save", () => {
     const back = deserialize(JSON.stringify(s), T0);
     expect(back.settings.haptics).toBe(true);
     expect(back.perks.soulAtk).toBe(0);
+  });
+});
+
+describe("kuro", () => {
+  it("boss win drop fish", () => {
+    const s = play(300);
+    expect(s.life.bossKills).toBeGreaterThan(0);
+    expect(s.kuro.fish).toBeGreaterThan(0);
+  });
+  it("tap claw hit enemy, then cooldown", () => {
+    const s = newGame(T0, 3);
+    const rng = createRng(3);
+    while (!s.battle.enemy) tick(s, 0.05, rng);
+    s.kuro.strikeCd = 0;
+    s.battle.enemy!.hp = 1e12;
+    const before = s.battle.enemy!.hp;
+    const ev: SimEvent[] = [];
+    expect(kuroTap(s, rng, (e) => ev.push(e))).toBe(true);
+    expect(s.battle.enemy!.hp).toBeLessThan(before);
+    expect(ev.some((e) => e.t === "kuroStrike")).toBe(true);
+    expect(kuroTap(s, rng)).toBe(false); // on cooldown
+  });
+  it("auto claw only after unlock level", () => {
+    const count = (lvl: number) => {
+      const s = newGame(T0, 4);
+      s.kuro.level = lvl;
+      const rng = createRng(4);
+      let n = 0;
+      for (let t = 0; t < 120; t += 0.05) tick(s, 0.05, rng, (e) => { if (e.t === "kuroStrike") n++; });
+      return n;
+    };
+    expect(count(1)).toBe(0);
+    expect(count(KURO.autoCastLevel)).toBeGreaterThan(3);
+  });
+  it("feed level up, cost fish", () => {
+    const s = newGame(T0, 1);
+    expect(feedKuro(s)).toBe(false);
+    s.kuro.fish = 1000;
+    const cap0 = offlineCapSeconds(s);
+    expect(feedKuro(s)).toBe(true);
+    expect(s.kuro.level).toBe(2);
+    expect(s.kuro.fish).toBe(1000 - KURO.feedCost(1));
+    expect(offlineCapSeconds(s)).toBeGreaterThan(cap0);
+  });
+  it("pet: cooldown, sulk give double, blessing", () => {
+    const s = newGame(T0, 1);
+    const a = petKuro(s, T0)!;
+    expect(a.fish).toBeGreaterThan(0);
+    expect(s.kuro.buffLeft).toBe(KURO.buffSeconds);
+    expect(petKuro(s, T0 + 3600_000)).toBeNull();
+    const b = petKuro(s, T0 + 30 * 3600_000)!;
+    expect(b.sulk).toBe(true);
+    expect(b.fish).toBe(a.fish * KURO.sulkFishMult);
+  });
+  it("rebirth keep kuro", () => {
+    const s = newGame(T0, 1);
+    s.maxStage = 60; s.stage = 60; s.life.bestStage = 60;
+    s.kuro.level = 7; s.kuro.fish = 12;
+    rebirth(s, T0);
+    expect(s.kuro.level).toBe(7);
+    expect(s.kuro.fish).toBe(12);
+  });
+  it("v1 save get kuro default", () => {
+    const old: any = JSON.parse(serialize(newGame(T0, 1)));
+    delete old.kuro;
+    old.version = 1;
+    const s = deserialize(JSON.stringify(old), T0);
+    expect(s.kuro.level).toBe(1);
+    expect(s.version).toBe(2);
   });
 });

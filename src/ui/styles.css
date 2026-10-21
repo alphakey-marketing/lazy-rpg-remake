@@ -484,3 +484,118 @@ select { font-family: inherit; font-size: 15px; border: 3px solid var(--ink); bo
 .jc-mults, .jc-skill { font-size: 13px; font-weight: 700; }
 .seg button { position: relative; }
 .seg .red-dot { top: -4px; right: 4px; }
+
+/* ── Kuro claw button (battle, bottom-left) ── */
+.kuro-btn {
+  position: absolute; left: 10px; bottom: 10px; z-index: 3;
+  width: 62px; height: 62px; border-radius: 50%; padding: 0;
+  display: grid; place-items: center;
+  background: conic-gradient(#c77dff var(--p), #3a2a55 var(--p));
+  border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink);
+}
+.kuro-btn::before {
+  content: ""; position: absolute; inset: 5px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #5b3b85, #24163a);
+  border: 2px solid var(--ink);
+}
+.kuro-btn > * { position: relative; }
+.kb-icon { font-size: 28px; filter: grayscale(.6) brightness(.8); }
+.kuro-btn.ready { animation: kuroPulse 1s infinite alternate; }
+.kuro-btn.ready .kb-icon { filter: none; }
+.kuro-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.kb-cd {
+  position: absolute; font-weight: 900; font-size: 20px; color: #fff;
+  -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill;
+}
+.kb-auto {
+  position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 900; color: #fff; background: #ff8a3d;
+  border: 2px solid var(--ink); border-radius: 8px; padding: 0 5px; line-height: 14px;
+}
+@keyframes kuroPulse { from { box-shadow: 0 3px 0 var(--ink), 0 0 0 0 #c77dff99; } to { box-shadow: 0 3px 0 var(--ink), 0 0 0 8px #c77dff00; } }
+
+/* ── Kuro panel ── */
+.kuro-grow { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.kuro-hero {
+  display: flex; align-items: center; gap: 10px; padding: 8px;
+  background: linear-gradient(#3a2a5a, #24163a); border: 3px solid var(--ink); border-radius: 16px; color: #fff;
+}
+.kuro-pic { border-radius: 50%; background: radial-gradient(#6b4fa3, #2a1e4f); border: 3px solid var(--ink); }
+.kuro-pic.blessed { box-shadow: 0 0 18px 4px #ffd23f88; }
+.kuro-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.kuro-name { font-size: 22px; font-weight: 900; }
+.kuro-name .lv { font-size: 15px; color: #ffd23f; }
+.kuro-mood { font-size: 13px; line-height: 1.35; opacity: .95; }
+.kuro-fish { font-size: 15px; } .kuro-fish b { color: #7fe3ff; font-size: 18px; }
+.kuro-buff {
+  font-size: 13px; font-weight: 800; padding: 6px 10px; border-radius: 12px;
+  background: #fff3c4; border: 2px solid var(--ink);
+}
+.kuro-actions { display: flex; gap: 8px; } .kuro-actions .btn { flex: 1; }
+.kuro-stats { background: var(--panel2); border: 3px solid var(--ink); border-radius: 14px; padding: 6px 10px; }
+.ks-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; font-weight: 700; }
+.ks-row + .ks-row { border-top: 2px dashed #d9bf8f; }
+.ks-icon { width: 22px; text-align: center; }
+.ks-name { flex: 1; }
+.ks-cur { font-weight: 900; }
+.ks-cur.locked { color: #9a8070; }
+.ks-next { color: #2fae4a; font-size: 13px; font-weight: 900; }
+.toggle {
+  min-width: 52px; padding: 3px 10px; border-radius: 12px; font-weight: 900; color: #fff;
+  background: #9aa4c0; border: 2px solid var(--ink); box-shadow: 0 2px 0 var(--ink);
+}
+.toggle.on { background: #2fae4a; }
+.kuro-hint { font-size: 12px; color: #7a5a3a; line-height: 1.5; padding: 0 4px; }
+.kuro-story { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.ks-head { font-weight: 900; font-size: 15px; margin-top: 6px; } .ks-head small { font-weight: 600; color: #9a8070; }
+.story-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px; text-align: left;
+  background: #fff; border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 3px 0 var(--ink);
+  font-weight: 800; color: var(--text);
+}
+.story-row:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.story-row.locked { background: #e8dcc4; color: #9a8070; box-shadow: none; }
+.story-row.frag:not(.locked) { background: linear-gradient(90deg, #f1e4ff, #fff); }
+.sr-num {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: #2a1e4f; color: #ffd23f; font-weight: 900; font-size: 14px;
+}
+.sr-title { flex: 1; } .sr-go { font-size: 14px; }
+
+/* ── Dialogue (story) ── */
+.dlg-wrap {
+  position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; justify-content: flex-end;
+  max-width: 480px; margin: 0 auto; padding: 0 10px 110px;
+  background: linear-gradient(#0000 30%, #0d0618cc);
+  animation: fadeIn .25s;
+}
+.dlg-title {
+  align-self: center; margin-bottom: 10px; padding: 4px 18px; border-radius: 14px;
+  background: #2a1e4f; color: #ffd23f; font-weight: 900; font-size: 16px; border: 3px solid var(--ink);
+}
+.dlg-box {
+  position: relative; display: flex; gap: 10px; align-items: flex-start; min-height: 110px;
+  padding: 14px 12px 26px; border-radius: 18px;
+  background: var(--panel); border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink);
+  animation: pop .25s cubic-bezier(.2, 1.6, .4, 1);
+}
+.dlg-box.who-narr { background: #2a1e4f; color: #e8e0ff; font-style: italic; }
+.dlg-box.who-lord { background: #3a1030; color: #ffd0e8; }
+.dlg-ava {
+  flex: none; width: 70px; height: 70px; border-radius: 50%; display: grid; place-items: center; font-size: 44px;
+  background: radial-gradient(#6b4fa3, #2a1e4f); border: 3px solid var(--ink); overflow: hidden;
+}
+.dlg-main { flex: 1; min-width: 0; }
+.dlg-name { font-weight: 900; font-size: 15px; color: #c46a00; margin-bottom: 2px; }
+.who-lord .dlg-name { color: #ff6aa8; }
+.dlg-text { font-size: 16px; font-weight: 700; line-height: 1.5; animation: fadeIn .3s; }
+.dlg-foot {
+  position: absolute; left: 12px; right: 12px; bottom: 4px;
+  display: flex; align-items: center; gap: 10px; font-size: 12px; opacity: .7;
+}
+.dlg-skip { margin-left: auto; font-size: 12px; font-weight: 800; color: inherit; padding: 2px 6px; }
+.dlg-next { animation: bob .6s infinite alternate; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* tutorial bubble no cover claw button */
+.tutorial { left: 80px; }

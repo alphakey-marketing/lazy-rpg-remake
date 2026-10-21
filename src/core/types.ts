@@ -72,6 +72,17 @@ export interface Lifetime {
   playSeconds: number;
 }
 
+export interface KuroState {
+  level: number;
+  fish: number;
+  strikeCd: number; // sec left before claw ready
+  lastPet: number; // epoch ms, 0 = never
+  buffLeft: number; // sec of pet blessing left
+  storySeen: number; // highest chapter intro shown
+  fragmentsSeen: number; // memory fragment shown (unlock 1 per rebirth)
+  auto: boolean; // auto claw on (need level)
+}
+
 export interface GameState {
   version: number;
   seed: number;
@@ -108,6 +119,7 @@ export interface GameState {
   life: Lifetime;
   bestiary: Partial<Record<FamilyId, number>>;
 
+  kuro: KuroState;
   battle: Battle;
   tutorialStep: number; // 0.. ; -1 = done
 }
@@ -125,7 +137,9 @@ export type SimEvent =
   | { t: "bossWin"; stage: number }
   | { t: "bossFail"; reason: "dead" | "timeout" }
   | { t: "heroDown"; retreatTo: number }
-  | { t: "bagFull" };
+  | { t: "bagFull" }
+  | { t: "kuroStrike"; dmg: number; crit: boolean; hits: number; auto: boolean }
+  | { t: "fish"; n: number };
 
 export interface OfflineSummary {
   seconds: number;
@@ -139,4 +153,5 @@ export interface OfflineSummary {
   items: number;
   salvagedStones: number;
   bestRarity: Rarity | null;
+  fish: number;
 }

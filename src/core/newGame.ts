@@ -1,7 +1,7 @@
 import { freshDaily } from "./daily";
 import type { GameState } from "./types";
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export function newGame(now: number, seed = Math.floor(Math.random() * 2 ** 31)): GameState {
   return {
@@ -33,6 +33,7 @@ export function newGame(now: number, seed = Math.floor(Math.random() * 2 ** 31))
     settings: { autoBoss: true, autoEquip: true, autoSalvageBelow: null, sound: true, haptics: true, lang: "zh" },
     life: { kills: 0, bossKills: 0, goldEarned: 0, refines: 0, rebirths: 0, bestStage: 1, playSeconds: 0 },
     bestiary: {},
+    kuro: { level: 1, fish: 0, strikeCd: 5, lastPet: 0, buffLeft: 0, storySeen: 0, fragmentsSeen: 0, auto: true },
     battle: { enemy: null, heroHp: -1, spawnTimer: 0.3, heroAtkTimer: 0, enemyAtkTimer: 0, skillTimer: 3, bossTimer: 0 },
     tutorialStep: 0,
   };
