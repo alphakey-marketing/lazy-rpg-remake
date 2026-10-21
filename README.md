@@ -59,3 +59,9 @@ Pacing from the bot, no rebirth: stage 12 at 5 min, 23 at 10 min, 40 at 1 h, a w
 4. Cloud save (Firebase or Play Games) and anti-tamper checks on the save.
 5. i18n (en, zh-TW), analytics funnel (tutorial, D1/D7), remote-config balance.
 6. More content: pets, guild boss, an event stage and more jobs.
+
+## Share / deploy
+
+- Web (for friends to test): https://alphakey-marketing.github.io/lazy-rpg-remake/
+  - To update it: `npm run deploy`. This builds and pushes to the `gh-pages` branch; the site refreshes in about 1 minute.
+- Android, phone on USB debug: `npm run android`. This builds a debug APK and installs it.
