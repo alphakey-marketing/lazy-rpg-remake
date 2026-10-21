@@ -1,0 +1,29 @@
+{
+  "name": "lazy-rpg-remake",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Lazy RPG remake — idle RPG for mobile, pure-TS sim core + React UI + Canvas battle stage",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "balance": "vite-node scripts/balance.ts"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vite-node": "2.1.8",
+    "vitest": "2.1.8"
+  }
+}
