@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Players can only drop feedback in. Nobody can read/edit from client.
+    match /feedback/{id} {
+      allow create: if request.resource.data.keys().hasAll(['text', 'mood', 'pid', 'at'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.mood in ['love', 'ok', 'bored', 'bug']
+        && request.resource.data.at == request.time;
+      allow read, update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,8 +1,10 @@
 // Canvas2D battle view. Read state every frame, react to sim event for juice.
 // Interface small → later swap to PixiJS / Spine without touch game logic.
-import { BIOMES, FAMILIES, JOBS } from "../../config/content";
+import { BIOMES, FAMILIES, JOBS, jobRoute } from "../../config/content";
 import { BARKS, CHAPTERS } from "../../config/story";
 import { biomeIndex, biomeLoop } from "../../core/formulas";
+import { SKILL_NAME } from "../names";
+import { jobMechanics } from "../../core/jobs";
 import { fmt } from "../../core/format";
 import { rarityIndex } from "../../core/items";
 import { computeStats } from "../../core/stats";
@@ -71,11 +73,24 @@ export class BattleRenderer {
           this.burst(ex, gy - u, 8, "#ffd23f", 4);
         } else this.burst(ex, gy - u, 3, "#ffffff", 2.5);
         break;
-      case "skill":
+      case "skillCast":
         this.fx.push({ kind: e.fx, life: 0.7, max: 0.7, hits: e.hits });
-        this.shake = Math.max(this.shake, 7);
+        this.addText(this.heroX, gy - u * 3, `${e.empowered ? "法力爆發 · " : ""}${SKILL_NAME[e.skillId] ?? "技能"}`, e.empowered ? "#ffd23f" : "#ffffff", 17, .8);
+        break;
+      case "ward":
+        this.addText(this.heroX, gy - u * 2.4, `${e.blocked ? "格擋" : "護盾"} ${fmt(Math.round(e.amount))}`, "#7fe3ff", 17, .8);
+        break;
+      case "proc":
         this.enemyFlash = 1;
-        this.addText(ex, gy - u * 3, fmt(Math.max(1, Math.round(e.dmg))), e.crit ? "#ff9cf5" : "#c9a7ff", e.crit ? 38 : 32, 1.3);
+        this.shake = Math.max(this.shake, 3);
+        this.fx.push({ kind: e.kind === "pursuit" ? "pierce" : "slash", life: .3, max: .3, hits: 1 });
+        this.addText(ex, gy - u * 2.5, `${e.kind === "counter" ? "反擊" : "追擊"} ${fmt(Math.round(e.dmg))}`, e.kind === "counter" ? "#ffd166" : "#2ee6a8", 22, .85);
+        break;
+      case "skill":
+        if (e.hitIndex === undefined) this.fx.push({ kind: e.fx, life: 0.7, max: 0.7, hits: e.hits });
+        this.shake = Math.max(this.shake, e.empowered ? 9 : e.hits > 1 ? 3 : 7);
+        this.enemyFlash = 1;
+        this.addText(ex, gy - u * 3, `${e.hits > 1 && e.hitIndex !== undefined ? `${e.hitIndex + 1}連 · ` : ""}${fmt(Math.max(1, Math.round(e.dmg)))}`, e.empowered ? "#ffd23f" : e.crit ? "#ff9cf5" : "#c9a7ff", e.hits > 1 ? 25 : e.crit ? 38 : 32, .85);
         break;
       case "kuroStrike":
         this.kuroDash = 1;
@@ -373,6 +388,24 @@ export class BattleRenderer {
     if (this.say) this.drawSay(kx, ky - u * 0.7, this.say.text, this.say.life);
     drawHero(c, job, this.heroX, gy, u, this.t * (s.battle.enemy ? 1 : 2), this.lunge, this.hurt);
 
+    const combat = s.battle.combat;
+    const route = jobRoute(s.job);
+    if (combat.shield > 0) {
+      c.beginPath();
+      c.ellipse(this.heroX, gy - u * 1.1, u * .85, u * 1.5, 0, 0, Math.PI * 2);
+      c.fillStyle = "rgba(127,227,255,.17)";
+      c.fill(); c.strokeStyle = "#7fe3ff"; c.lineWidth = 3; c.stroke();
+    }
+    if (route === "arcanist" || route === "ranger") {
+      const max = route === "arcanist" ? 3 : jobMechanics(s).comboTarget;
+      const filled = route === "arcanist" ? combat.mana : combat.combo;
+      for (let i = 0; i < max; i++) {
+        c.beginPath(); c.arc(this.heroX + (i - (max - 1) / 2) * 11, gy - u * 2.6, 4, 0, Math.PI * 2);
+        c.fillStyle = i < filled ? route === "arcanist" ? "#b07cff" : "#2ee6a8" : "#362743";
+        c.fill(); c.strokeStyle = "#fff"; c.lineWidth = 1; c.stroke();
+      }
+    }
+
     // hero hp bar under feet
     const st = s.battle;
     const maxHp = Math.max(1, computeStats(s).maxHp);
@@ -488,7 +521,7 @@ export class BattleRenderer {
         case "volley":
         case "pierce":
           for (let i = 0; i < f.hits; i++) {
-            const p = Math.min(1, k * 2.2 - i * 0.12);
+            const p = Math.min(1, (k * .7 - i * (f.kind === "volley" ? .12 : .1)) / .14);
             if (p <= 0) continue;
             const x = hx + (ex - hx) * p;
             const y = gy - u * (1 + (i % 3) * 0.3) - Math.sin(p * Math.PI) * (f.kind === "volley" ? u : 0);
@@ -647,6 +680,7 @@ export class BattleRenderer {
     c.fill();
     c.stroke();
     c.fillStyle = "#2a1a3e";
+    c.textAlign = "left";
     c.textBaseline = "top";
     lines.forEach((l, i) => c.fillText(l, bx + 8, by + 6 + i * 15));
     c.restore();

@@ -197,3 +197,21 @@ export const KURO = {
   buffSeconds: 1800, // pet blessing length (sim time, offline also count down)
   buffMult: 0.25, // blessing: gold & exp +25%
 };
+
+// Permanent tower progress; daily rewards share one claim, including sweeps.
+export const TOWER = {
+  unlockStage: 11,
+  timeLimit: 30,
+  firstEnemyStage: 8,
+  stagesPerFloor: 2,
+  milestoneEvery: 5,
+  firstClearFish: (floor: number) => 2 + Math.floor(floor / 5),
+  milestoneGems: 10,
+  dailyFish: (highest: number) => Math.min(12, 3 + Math.floor(highest / 5)),
+  dailyGems: 10,
+  modifiers: [
+    { name: "破甲日", description: "塔內怪物生命 -20%", hp: 0.8, atk: 1, speed: 1 },
+    { name: "守護日", description: "塔內怪物攻擊 -30%", hp: 1, atk: 0.7, speed: 1 },
+    { name: "慢拍日", description: "塔內怪物攻速 -30%", hp: 1, atk: 1, speed: 0.7 },
+  ],
+} as const;

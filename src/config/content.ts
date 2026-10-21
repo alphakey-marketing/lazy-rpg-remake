@@ -135,3 +135,30 @@ export const SUB_STAT_RANGE: Record<SubStatId, [number, number]> = {
   expPct: [0.05, 0.15],
   aps: [0.02, 0.06],
 };
+
+// Each route has one readable automatic mechanic and two tier-2 specializations.
+export type SpecializationId = "guardian" | "judicator" | "cataclysm" | "flow" | "barrage" | "marksman";
+export type JobRoute = "blade" | "arcanist" | "ranger" | "novice";
+export function jobRoute(job: JobId): JobRoute {
+  return job === "paladin" ? "blade" : job === "archmage" ? "arcanist" : job === "sniper" ? "ranger" : job;
+}
+export const SPECIALIZATIONS: Record<SpecializationId, { job: JobId; name: string; description: string }> = {
+  guardian: { job: "paladin", name: "守護", description: "技能護盾：最大生命 65%；吸收傷害後反擊。" },
+  judicator: { job: "paladin", name: "審判", description: "護盾降至最大生命 22%；反擊傷害提升至 180%。" },
+  cataclysm: { job: "archmage", name: "重爆", description: "技能傷害 +30%，冷卻延長 15%。" },
+  flow: { job: "archmage", name: "流轉", description: "技能冷卻縮短 30%，每次技能傷害降低 20%。" },
+  barrage: { job: "sniper", name: "疾射", description: "每 3 次普攻追擊一次，造成 75% 攻擊傷害。" },
+  marksman: { job: "sniper", name: "狙擊", description: "每 5 次普攻追擊一次，造成 240% 攻擊傷害。" },
+};
+export const JOB_PLAYSTYLE: Record<JobRoute, { hook: string; mechanic: string }> = {
+  novice: { hook: "揀一條屬於你嘅路", mechanic: "Lv.12 開始第一次轉職。" },
+  blade: { hook: "頂住，再反打", mechanic: "施放技能獲得 3 秒護盾（最大生命 40%）；吸收傷害後反擊。" },
+  arcanist: { hook: "儲滿，一發爆開", mechanic: "每次普攻儲 1 格法力；滿 3 格時，下一次技能傷害 +65%。" },
+  ranger: { hook: "密集連射，追擊不停", mechanic: "每 4 次普攻觸發追擊，造成 110% 攻擊傷害。" },
+};
+export const SKILL_TIMING: Record<string, { delay: number; interval: number }> = {
+  bonk: { delay: .08, interval: .1 }, whirl: { delay: .1, interval: .14 },
+  meteor: { delay: .42, interval: .1 }, volley: { delay: .14, interval: .12 },
+  judgement: { delay: .12, interval: .14 }, nova: { delay: .35, interval: .1 },
+  pierce: { delay: .14, interval: .1 },
+};

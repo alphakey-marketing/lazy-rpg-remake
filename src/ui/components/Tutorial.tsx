@@ -1,10 +1,10 @@
 import { trainingCost } from "../../core/formulas";
 import { store, useGame } from "../store";
 
-type Open = (p: "train" | "hero" | null) => void;
+type Open = (p: "train" | "hero" | "kuro" | null) => void;
 
 // Short guide. Each step wait for condition, Kuro talk. Skip any time.
-const STEPS: { text: string; when: (s: ReturnType<typeof useGame>) => boolean; done: (s: ReturnType<typeof useGame>) => boolean; cta?: string; panel?: "train" | "hero" }[] = [
+const STEPS: { text: string; when: (s: ReturnType<typeof useGame>) => boolean; done: (s: ReturnType<typeof useGame>) => boolean; cta?: string; panel?: "train" | "hero" | "kuro" }[] = [
   {
     text: "勇者會自己打怪，你坐定定睇就得。我都係咁 😼",
     when: () => true,
@@ -34,6 +34,13 @@ const STEPS: { text: string; when: (s: ReturnType<typeof useGame>) => boolean; d
     done: () => false,
     cta: "去睇",
     panel: "hero",
+  },
+  {
+    text: "Boss 掉咗魚乾！去「黑貓」摸摸我、餵我升級。Lv.5 我會自己出爪。",
+    when: (s) => s.life.bossKills > 0,
+    done: (s) => s.kuro.level >= 2 && s.kuro.lastPet > 0,
+    cta: "去養貓",
+    panel: "kuro",
   },
   {
     text: "熄咗 App 我都會幫你打，最多 8 個鐘。記得返嚟領獎…同摸我！",

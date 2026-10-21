@@ -18,6 +18,8 @@ import { RARITY_COLOR } from "../theme";
 import { CORRUPTION_NAME, PERK_NAME, QUEST_NAME, RARITY_NAME, TRAIN_NAME } from "../names";
 import { Amount, Bar, Btn, CurIcon, Modal, Sheet } from "./common";
 import { toast } from "./Toasts";
+import { achievementClaimable } from "../../core/achievements";
+import { Achievements } from "./Achievements";
 
 // ── Training ─────────────────────────────────────────────────────────
 export function TrainPanel({ onClose }: { onClose: () => void }) {
@@ -171,9 +173,21 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
 // ── Daily quest ─────────────────────────────────────────────────────
 export function DailyPanel({ onClose }: { onClose: () => void }) {
   const s = useGame();
+  const [tab, setTab] = useState<"daily" | "achievements">(() => achievementClaimable(s) > 0 ? "achievements" : "daily");
+  return <Sheet title="任務與成就" onClose={onClose} tall>
+    <div className="seg">
+      <button className={tab === "daily" ? "on" : ""} onClick={() => setTab("daily")}>每日任務</button>
+      <button className={tab === "achievements" ? "on" : ""} onClick={() => setTab("achievements")}>成就{achievementClaimable(s) > 0 && <span className="red-dot" />}</button>
+    </div>
+    {tab === "daily" ? <DailyQuests /> : <Achievements />}
+  </Sheet>;
+}
+
+function DailyQuests() {
+  const s = useGame();
   const allClaimed = DAILY_QUESTS.every((q) => s.daily.claimed[q.id]);
   return (
-    <Sheet title="每日任務" onClose={onClose}>
+    <>
       {DAILY_QUESTS.map((q) => {
         const p = s.daily.progress[q.id] ?? 0;
         const done = p >= q.target;
@@ -204,7 +218,7 @@ export function DailyPanel({ onClose }: { onClose: () => void }) {
         </Btn>
       </div>
       <div className="hint">每日午夜重置</div>
-    </Sheet>
+    </>
   );
 }
 

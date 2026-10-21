@@ -1,34 +1,82 @@
 import { useEffect, useRef, useState } from "react";
-import { BALANCE, CORRUPTION, KURO, REBIRTH } from "../config/balance";
+import { BALANCE, CORRUPTION, KURO, REBIRTH, TOWER } from "../config/balance";
 import type { Line } from "../config/story";
-import { BIOMES } from "../config/content";
-import { availableJobs, buyTraining, canChangeJob, canRebirth, challengeBoss, corruptionUnlocked, kuroFeedCost, petWaitMs, rebirthShards } from "../core/actions";
+import { BIOMES, JOBS, JOB_PLAYSTYLE, jobRoute } from "../config/content";
+import { availableJobs, specializationReady, buyTraining, canChangeJob, canRebirth, challengeBoss, corruptionUnlocked, kuroFeedCost, petWaitMs, rebirthShards } from "../core/actions";
 import { dailyClaimable, loginClaimable } from "../core/daily";
 import { fmt } from "../core/format";
 import { biomeIndex, chapterOf, expToNext, stageInChapter, trainingCost } from "../core/formulas";
 import { rarityIndex } from "../core/items";
 import { computeStats, powerWith } from "../core/stats";
+import { nextPlayerGoal } from "../core/goals";
+import { towerDailyAvailable, towerUnlocked } from "../core/tower";
 import { buzz, sfx } from "../services/feedback";
 import { BattleRenderer } from "./render/BattleRenderer";
 import { store, useGame } from "./store";
 import { RARITY_COLOR } from "./theme";
-import { BIOME_NAME, CORRUPTION_NAME, itemName, RARITY_NAME } from "./names";
+import { BIOME_NAME, CORRUPTION_NAME, JOB_NAME, itemName, RARITY_NAME } from "./names";
 import { Amount, Bar, Btn } from "./components/common";
 import { HeroPanel } from "./components/HeroPanel";
 import { CorruptionPanel, DailyPanel, LoginPanel, OfflineModal, RebirthPanel, SettingsPanel, ShopPanel, TrainPanel } from "./components/Panels";
 import { toast, Toasts } from "./components/Toasts";
 import { Tutorial } from "./components/Tutorial";
 import { Dialogue, KuroButton, KuroPanel, pendingStory } from "./components/KuroPanel";
+import { TowerPanel } from "./components/TowerPanel";
+import { BestiaryPanel } from "./components/BestiaryPanel";
+import { FeedbackPanel } from "./components/FeedbackPanel";
+import { trackPanel } from "./analyticsWatch";
+import { BESTIARY, BESTIARY_STAT_NAME } from "../config/bestiary";
+import { bestiaryTier } from "../core/bestiary";
+import type { FamilyId } from "../config/content";
 
-type Panel = null | "hero" | "train" | "kuro" | "rebirth" | "shop" | "daily" | "login" | "corruption" | "settings";
+const BESTIARY_IDS = Object.keys(BESTIARY) as FamilyId[];
+import { ACHIEVEMENTS } from "../config/achievements";
+import { achievementClaimable } from "../core/achievements";
+
+type Panel = null | "hero" | "train" | "kuro" | "tower" | "bestiary" | "feedback" | "rebirth" | "shop" | "daily" | "login" | "corruption" | "settings";
 
 export function App() {
   const s = useGame();
   const [panel, setPanel] = useState<Panel>(null);
   const [powerPop, setPowerPop] = useState(0);
+  const [promotion, setPromotion] = useState(false);
+  const previousJob = useRef(s.job);
+  useEffect(() => {
+    if (s.job === previousJob.current) return;
+    previousJob.current = s.job;
+    if (s.job === "novice") { setPromotion(false); return; }
+    setPanel(null); setPromotion(true); sfx.win(); buzz(60);
+    const timeout = setTimeout(() => setPromotion(false), 1800);
+    return () => clearTimeout(timeout);
+  }, [s.job]);
+  useEffect(() => { if (panel) trackPanel(panel); }, [panel]);
   const [reread, setReread] = useState<{ title: string; lines: Line[] } | null>(null);
   const st = computeStats(s);
   const lastPower = useRef(st.power);
+  const lastAchievements = useRef(new Set(s.achievements.unlocked));
+
+  useEffect(() => {
+    const unlocked = ACHIEVEMENTS.filter((a) => s.achievements.unlocked.includes(a.id) && !lastAchievements.current.has(a.id));
+    if (unlocked.length) toast(unlocked.length === 1 ? `🏆 成就達成：${unlocked[0].title}！去「任務」領獎。` : `🏆 達成 ${unlocked.length} 項成就！去「任務」領獎。`, "#ffd23f");
+    lastAchievements.current = new Set(s.achievements.unlocked);
+  }, [s.achievements.unlocked.length]);
+
+  // bestiary star up → toast. Compare per family so we know who.
+  const lastTiers = useRef<Record<string, number> | null>(null);
+  const tierKey = BESTIARY_IDS.map((id) => bestiaryTier(s.bestiary[id] ?? 0)).join(",");
+  useEffect(() => {
+    const now = Object.fromEntries(BESTIARY_IDS.map((id) => [id, bestiaryTier(s.bestiary[id] ?? 0)]));
+    if (lastTiers.current) {
+      for (const id of BESTIARY_IDS) {
+        if (now[id] > lastTiers.current[id]) {
+          const b = BESTIARY[id];
+          toast(`📖 圖鑑升星！${b.name} ${"★".repeat(now[id])} · ${BESTIARY_STAT_NAME[b.stat]} +${+(b.perTier * 100).toFixed(1)}%`, "#ffb84d");
+          sfx.levelUp();
+        }
+      }
+    }
+    lastTiers.current = now;
+  }, [tierKey]);
 
   // power up popup (dopamine number)
   useEffect(() => {
@@ -45,6 +93,8 @@ export function App() {
   useEffect(() => store.onEvent((e) => {
     switch (e.t) {
       case "heroHit": sfx.hit(e.crit); break;
+      case "skill": sfx.skill(e.fx); break;
+      case "proc": sfx.hit(e.crit); break;
       case "kill": sfx.kill(); break;
       case "levelUp": sfx.levelUp(); buzz(20); break;
       case "bossStart": sfx.boss(); buzz(40); break;
@@ -64,16 +114,18 @@ export function App() {
   }), []);
 
   const now = Date.now();
+  const goal = nextPlayerGoal(s, now);
   const dots = {
-    daily: dailyClaimable(s) > 0,
+    daily: dailyClaimable(s) > 0 || achievementClaimable(s) > 0,
     login: loginClaimable(s, now),
-    hero: availableJobs(s).some((j) => canChangeJob(s, j)) || s.bag.some((it) => powerWith(s, it) > st.power),
+    hero: specializationReady(s) || availableJobs(s).some((j) => canChangeJob(s, j)) || s.bag.some((it) => powerWith(s, it) > st.power),
     train: s.gold >= trainingCost("atk", s.training.atk),
     rebirth: canRebirth(s) && rebirthShards(s) >= 20,
     kuro: petWaitMs(s, now) === 0 || (s.kuro.level < KURO.maxLevel && s.kuro.fish >= kuroFeedCost(s)),
+    tower: towerUnlocked(s) && (s.tower.highestFloor === 0 || towerDailyAvailable(s, now)),
   };
   // story pop only on main screen, after offline popup
-  const story = !store.offline && panel === null ? pendingStory(s) : null;
+  const story = !promotion && !store.offline && panel === null ? pendingStory(s) : null;
 
   const biome = BIOMES[biomeIndex(s.stage)];
   const expNeed = expToNext(s.level);
@@ -116,12 +168,14 @@ export function App() {
         <div className="side left">
           <SideIcon icon="📅" label="簽到" dot={dots.login} onClick={() => setPanel("login")} />
           <SideIcon icon="📜" label="任務" dot={dots.daily} onClick={() => setPanel("daily")} />
-          <SideIcon icon="🛒" label="商店" onClick={() => setPanel("shop")} />
+          <SideIcon icon="🗼" label="無盡塔" dot={dots.tower} locked={!towerUnlocked(s)} lockText={`${TOWER.unlockStage - 1}關通關`} onClick={() => setPanel("tower")} />
+          <SideIcon icon="📖" label="圖鑑" onClick={() => setPanel("bestiary")} />
         </div>
         <div className="side right">
           <SideIcon icon="🌑" label="腐化" locked={!corruptionUnlocked(s)} lockText={`${CORRUPTION.unlockStage}關`} onClick={() => setPanel("corruption")} />
           <SideIcon icon="🔮" label="轉生" dot={dots.rebirth} locked={s.life.bestStage < REBIRTH.unlockStage && s.life.rebirths === 0} lockText={`${REBIRTH.unlockStage}關`} onClick={() => setPanel("rebirth")} />
           <SideIcon icon="⚙️" label="設定" onClick={() => setPanel("settings")} />
+          <SideIcon icon="💬" label="意見" onClick={() => setPanel("feedback")} />
         </div>
         <KuroButton />
         <div className="power-plate">
@@ -132,6 +186,11 @@ export function App() {
       </div>
 
       <QuickTrain />
+
+      <button className="next-goal" onClick={() => setPanel(goal.panel)}>
+        <div><b>{goal.title}</b><span>{goal.detail}</span></div>
+        <strong>{goal.cta} ›</strong>
+      </button>
 
       <nav className="bottom-nav">
         <NavBtn icon="⚔️" label="戰鬥" on={panel === null} onClick={() => setPanel(null)} />
@@ -144,6 +203,9 @@ export function App() {
       {panel === "hero" && <HeroPanel onClose={() => setPanel(null)} />}
       {panel === "train" && <TrainPanel onClose={() => setPanel(null)} />}
       {panel === "kuro" && <KuroPanel onClose={() => setPanel(null)} onStory={(title, lines) => setReread({ title, lines })} />}
+      {panel === "tower" && <TowerPanel onClose={() => setPanel(null)} />}
+      {panel === "bestiary" && <BestiaryPanel onClose={() => setPanel(null)} />}
+      {panel === "feedback" && <FeedbackPanel onClose={() => setPanel(null)} />}
       {panel === "rebirth" && <RebirthPanel onClose={() => setPanel(null)} />}
       {panel === "shop" && <ShopPanel onClose={() => setPanel(null)} />}
       {panel === "daily" && <DailyPanel onClose={() => setPanel(null)} />}
@@ -154,7 +216,8 @@ export function App() {
       {store.offline && <OfflineModal sum={store.offline} />}
       {story && <Dialogue key={story.title} title={story.title} lines={story.lines} onDone={story.done} />}
       {reread && <Dialogue key={"r" + reread.title} title={reread.title} lines={reread.lines} onDone={() => setReread(null)} />}
-      {!store.offline && panel === null && !story && <Tutorial open={setPanel} />}
+      {!promotion && !store.offline && panel === null && !story && <Tutorial open={setPanel} />}
+      {promotion && <div className="promotion" role="status" style={{ ["--jc" as any]: JOBS[s.job].color }}><div className="promotion-ring">{jobRoute(s.job) === "blade" ? "🛡️" : jobRoute(s.job) === "arcanist" ? "🔮" : "🏹"}</div><span>轉職完成</span><strong>{JOB_NAME[s.job]}</strong><p>{JOB_PLAYSTYLE[jobRoute(s.job)].hook}</p><small>新技能即將登場！</small></div>}
       <Toasts />
     </div>
   );

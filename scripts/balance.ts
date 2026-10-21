@@ -2,7 +2,7 @@
 import { newGame } from "../src/core/newGame";
 import { createRng } from "../src/core/rng";
 import { tick } from "../src/core/sim";
-import { buyTraining, canChangeJob, changeJob, canRebirth, rebirth, buyPerk, refine, refineCost, salvageWeaker, setCorruption, corruptionUnlocked, feedKuro, petKuro } from "../src/core/actions";
+import { buyTraining, chooseSpecialization, canChangeJob, changeJob, canRebirth, rebirth, buyPerk, refine, refineCost, salvageWeaker, setCorruption, corruptionUnlocked, feedKuro, petKuro } from "../src/core/actions";
 import { computeStats } from "../src/core/stats";
 import { fmt } from "../src/core/format";
 import type { JobId } from "../src/config/content";
@@ -39,6 +39,7 @@ for (let t = 0; t < total; t += dt) {
     buyTraining(s, "speed", 1);
     if (canChangeJob(s, path)) changeJob(s, path);
     if (canChangeJob(s, second[path])) changeJob(s, second[path]);
+    chooseSpecialization(s, path === "blade" ? "guardian" : path === "arcanist" ? "cataclysm" : "barrage");
     salvageWeaker(s);
     while (feedKuro(s));
     petKuro(s, t * 1000 + 1);

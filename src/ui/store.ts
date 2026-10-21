@@ -8,6 +8,7 @@ import { serialize, deserialize } from "../core/save";
 import { ensureDaily } from "../core/daily";
 import type { GameState, OfflineSummary, SimEvent } from "../core/types";
 import { setFeedback } from "../services/feedback";
+import { syncAchievements } from "../core/achievements";
 
 const KEY = "lazyrpg.remake.save.v1";
 
@@ -41,6 +42,7 @@ class GameStore {
     this.rng = createRng(this.state.seed);
     if (s) this.catchUp(now);
     ensureDaily(this.state, now);
+    syncAchievements(this.state);
     setFeedback(this.state.settings.sound, this.state.settings.haptics);
   }
 
@@ -115,6 +117,7 @@ class GameStore {
   getVersion = () => this.version;
 
   notify(force = false) {
+    syncAchievements(this.state);
     this.lastNotify = force ? 0 : performance.now();
     this.version++;
     for (const l of this.listeners) l();

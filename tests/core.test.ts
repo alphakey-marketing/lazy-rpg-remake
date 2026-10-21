@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRng } from "../src/core/rng";
-import { newGame } from "../src/core/newGame";
+import { newGame, SAVE_VERSION } from "../src/core/newGame";
 import { tick } from "../src/core/sim";
 import { runOffline, offlineCapSeconds } from "../src/core/offline";
 import { expToNext } from "../src/core/formulas";
@@ -263,6 +263,6 @@ describe("kuro", () => {
     old.version = 1;
     const s = deserialize(JSON.stringify(old), T0);
     expect(s.kuro.level).toBe(1);
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(SAVE_VERSION);
   });
 });

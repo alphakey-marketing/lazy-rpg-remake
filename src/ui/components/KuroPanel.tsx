@@ -109,6 +109,8 @@ function KuroGrow() {
         </Btn>
       </div>
 
+      {!autoUnlocked && <div className="kuro-buff">下一個目標：Lv.{KURO.autoCastLevel} 自動貓爪！目前 Lv.{L}，下一級仲差 {Math.max(0, cost - k.fish)} 條魚乾。</div>}
+
       <div className="kuro-stats">
         {rows.map(([icon, name, cur, next]) => (
           <div key={name} className="ks-row">
@@ -132,7 +134,7 @@ function KuroGrow() {
       </div>
 
       <div className="kuro-hint">
-        魚乾點拎：打贏 Boss（章節魔王 ×{KURO.chapterBossFishMult}）、每 {KURO.petCooldownHours} 粒鐘摸一次 Kuro。
+        魚乾點拎：打贏 Boss（章節魔王 ×{KURO.chapterBossFishMult}）、無盡塔、每 {KURO.petCooldownHours} 粒鐘摸一次 Kuro。
         太耐冇摸佢會嬲，但係哄返佢有雙倍魚乾。
       </div>
     </div>

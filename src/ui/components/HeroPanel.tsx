@@ -1,25 +1,26 @@
 import { useState } from "react";
 import { REFINE } from "../../config/balance";
-import { JOBS, JobId, SLOTS } from "../../config/content";
-import { availableJobs, canChangeJob, changeJob, equipFromBag, findItem, refine, refineCost, RefineResult, salvage, salvageWeaker, toggleLock } from "../../core/actions";
+import { SLOTS } from "../../config/content";
+import { availableJobs, canChangeJob, specializationReady, equipFromBag, findItem, refine, refineCost, RefineResult, salvage, salvageWeaker, toggleLock } from "../../core/actions";
 import { fmt, pct } from "../../core/format";
 import { itemMain, salvageValue } from "../../core/items";
 import { computeStats, powerWith } from "../../core/stats";
 import { buzz, sfx } from "../../services/feedback";
 import { store, useGame } from "../store";
 import { RARITY_COLOR } from "../theme";
-import { itemName, JOB_DESC, JOB_NAME, RARITY_NAME, SKILL_NAME, SLOT_NAME, subText } from "../names";
+import { itemName, JOB_NAME, RARITY_NAME, SLOT_NAME, subText } from "../names";
 import { Amount, Btn, ItemCard, Sheet } from "./common";
+import { JobTab } from "./JobTab";
 import { toast } from "./Toasts";
 import type { Item } from "../../core/types";
 
 export function HeroPanel({ onClose }: { onClose: () => void }) {
   const s = useGame();
   const [sel, setSel] = useState<number | null>(null);
-  const [tab, setTab] = useState<"gear" | "job">("gear");
+  const [tab, setTab] = useState<"gear" | "job">(() => availableJobs(store.state).some((j) => canChangeJob(store.state, j)) || specializationReady(store.state) ? "job" : "gear");
   const st = computeStats(s);
   const selItem = sel !== null ? findItem(s, sel) : null;
-  const jobsReady = availableJobs(s).some((j) => canChangeJob(s, j));
+  const jobsReady = availableJobs(s).some((j) => canChangeJob(s, j)) || specializationReady(s);
 
   return (
     <Sheet title="英雄" onClose={onClose} tall>
@@ -159,41 +160,6 @@ function ItemDetail({ item, onDone }: { item: Item; onDone: () => void }) {
           </Btn>
         )}
       </div>
-    </div>
-  );
-}
-
-function JobTab() {
-  const s = useGame();
-  const next = availableJobs(s);
-  const cur = JOBS[s.job];
-  return (
-    <div className="job-tab">
-      <div className="job-card current" style={{ ["--jc" as any]: cur.color }}>
-        <div className="jc-name">{JOB_NAME[s.job]}</div>
-        <div className="jc-desc">{JOB_DESC[s.job]}</div>
-        <div className="jc-skill">技能：{SKILL_NAME[cur.skill.id]}（{cur.skill.cooldown}秒冷卻）</div>
-      </div>
-      {next.length === 0 && <div className="hint">已達最高職業。轉生後可以揀其他路線！</div>}
-      {next.map((j: JobId) => {
-        const d = JOBS[j];
-        const ok = canChangeJob(s, j);
-        return (
-          <div key={j} className="job-card" style={{ ["--jc" as any]: d.color }}>
-            <div className="jc-name">{JOB_NAME[j]}</div>
-            <div className="jc-desc">{JOB_DESC[j]}</div>
-            <div className="jc-mults">攻 ×{d.atkMult} · 血 ×{d.hpMult} · 速 ×{d.apsMult}</div>
-            <div className="jc-skill">技能：{SKILL_NAME[d.skill.id]}</div>
-            <Btn color={ok ? "gold" : "gray"} disabled={!ok} dot={ok} onClick={() => {
-              store.act((g) => changeJob(g, j));
-              sfx.levelUp();
-              toast(`轉職成為 ${JOB_NAME[j]}！`);
-            }}>
-              {ok ? "轉職" : `Lv.${d.unlockLevel} 解鎖`}
-            </Btn>
-          </div>
-        );
-      })}
     </div>
   );
 }

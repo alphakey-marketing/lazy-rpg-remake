@@ -2,6 +2,8 @@ import { BALANCE, ITEM, KURO, REBIRTH_PERKS, TRAINING, TRAINING_MILESTONE } from
 import { JOBS, SLOTS, Slot } from "../config/content";
 import { corruptionTier } from "./formulas";
 import { itemMain } from "./items";
+import { jobMechanics } from "./jobs";
+import { bestiaryBonus } from "./bestiary";
 import type { GameState, Item } from "./types";
 
 export interface HeroStats {
@@ -60,6 +62,11 @@ export function computeStats(state: GameState, gearOverride?: Partial<Record<Slo
     }
   }
 
+  // bestiary: kill many same monster → small forever bonus
+  const bb = bestiaryBonus(state);
+  atkPct += bb.atkPct; hpPct += bb.hpPct; goldPct += bb.goldPct; expPct += bb.expPct;
+  crit += bb.crit; critDmg += bb.critDmg; apsPct += bb.aps; def += bb.def;
+
   const lvlMult = Math.pow(H.levelMult, lvl - 1);
   const p = state.perks;
   const atk = atkFlat * lvlMult * job.atkMult * (1 + atkPct) * (1 + p.soulAtk * REBIRTH_PERKS.soulAtk.perLevel);
@@ -77,7 +84,12 @@ export function computeStats(state: GameState, gearOverride?: Partial<Record<Slo
   const skill = job.skill;
   const critFactor = 1 + crit * (critDmg - 1);
   const kuroDps = KURO.strikeMult(k.level) / KURO.cooldown(k.level);
-  const dps = atk * critFactor * (aps + (skill.hits * skill.mult) / skill.cooldown + kuroDps);
+  const mechanic = jobMechanics(state);
+  // Sustained estimate: mana depends on normal attacks between casts; counter damage
+  // depends on the enemy and is deliberately excluded from this offensive estimate.
+  const manaScale = mechanic.route === "arcanist" ? 1 + .65 * Math.min(1, aps * mechanic.cooldown / 3) : 1;
+  const pursuit = mechanic.route === "ranger" ? aps * mechanic.pursuitScale / mechanic.comboTarget : 0;
+  const dps = atk * critFactor * (aps + pursuit + (skill.hits * skill.mult * mechanic.skillScale * manaScale) / mechanic.cooldown + kuroDps);
   const ehp = maxHp / (1 - def);
   const power = Math.floor(dps * 6 + ehp * 0.6);
 

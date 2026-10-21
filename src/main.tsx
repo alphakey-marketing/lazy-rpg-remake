@@ -3,8 +3,10 @@ import { createRoot } from "react-dom/client";
 import { App } from "./ui/App";
 import { store } from "./ui/store";
 import "./ui/styles.css";
+import { startAnalytics } from "./ui/analyticsWatch";
 
 store.start();
+startAnalytics();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -1,5 +1,6 @@
 import { BALANCE, ITEM, KURO, Rarity } from "../config/balance";
-import { JOBS } from "../config/content";
+import { JOBS, SKILL_TIMING } from "../config/content";
+import { jobMechanics } from "./jobs";
 import { bumpDaily } from "./daily";
 import { corruptionTier, expToNext, isChapterBossStage, killExp, killGold, makeEnemy } from "./formulas";
 import { generateItem, rarityIndex, salvageValue } from "./items";
@@ -17,12 +18,16 @@ const H = BALANCE.hero;
 export function tick(state: GameState, dt: number, rng: Rng, emit: Emit = noEmit): void {
   const b = state.battle;
   const st = computeStats(state);
+  const c = b.combat;
+  const mechanic = jobMechanics(state);
   state.life.playSeconds += dt;
 
   if (b.heroHp < 0) b.heroHp = st.maxHp;
   if (b.heroHp > st.maxHp) b.heroHp = st.maxHp;
   b.heroHp = Math.min(st.maxHp, b.heroHp + H.regenPerSec * st.maxHp * dt);
 
+  if (c.shieldLeft > 0) c.shieldLeft = Math.max(0, c.shieldLeft - dt);
+  if (c.shieldLeft <= 0) c.shield = 0;
   const k = state.kuro;
   if (k.buffLeft > 0) k.buffLeft = Math.max(0, k.buffLeft - dt);
   if (k.strikeCd > 0) k.strikeCd = Math.max(0, k.strikeCd - dt);
@@ -38,32 +43,58 @@ export function tick(state: GameState, dt: number, rng: Rng, emit: Emit = noEmit
   // hero normal attack
   b.heroAtkTimer += dt;
   const interval = 1 / st.aps;
-  while (b.heroAtkTimer >= interval && e.hp > 0) {
+  while (!c.showcase && b.heroAtkTimer >= interval && e.hp > 0) {
     b.heroAtkTimer -= interval;
     const crit = rng.next() < st.crit;
     const dmg = st.atk * (0.92 + rng.next() * 0.16) * (crit ? st.critDmg : 1);
     e.hp -= dmg;
     emit({ t: "heroHit", dmg, crit });
+    if (mechanic.route === "arcanist") c.mana = Math.min(3, c.mana + 1);
+    if (mechanic.route === "ranger") {
+      c.combo++;
+      if (c.combo >= mechanic.comboTarget && e.hp > 0) {
+        c.combo = 0;
+        const pursuit = st.atk * mechanic.pursuitScale * (crit ? st.critDmg : 1);
+        e.hp -= pursuit;
+        emit({ t: "proc", kind: "pursuit", dmg: pursuit, crit });
+      }
+    }
   }
 
-  // job skill, auto cast on cooldown
+  // Cast first, land hits on the same schedule used by the visual effects.
   b.skillTimer -= dt;
-  if (b.skillTimer <= 0 && e.hp > 0) {
-    const sk = JOBS[state.job].skill;
-    let total = 0;
-    let anyCrit = false;
-    for (let i = 0; i < sk.hits; i++) {
-      const crit = rng.next() < st.crit;
-      anyCrit ||= crit;
-      total += st.atk * sk.mult * (crit ? st.critDmg : 1);
+  const sk = JOBS[state.job].skill;
+  if (b.skillTimer <= 0 && !c.pending && e.hp > 0) {
+    const empowered = mechanic.route === "arcanist" && c.mana >= 3;
+    if (empowered) c.mana = 0;
+    c.pending = { next: SKILL_TIMING[sk.id].delay, left: sk.hits, hits: sk.hits,
+      mult: sk.mult * mechanic.skillScale * (empowered ? 1.65 : 1), empowered };
+    b.heroAtkTimer = Math.min(b.heroAtkTimer, interval);
+    b.skillTimer = mechanic.cooldown;
+    emit({ t: "skillCast", skillId: sk.id, fx: sk.fx, hits: sk.hits, empowered });
+    if (mechanic.route === "blade") {
+      c.shield = st.maxHp * mechanic.shieldFraction;
+      c.shieldLeft = 3;
+      emit({ t: "ward", amount: c.shield, blocked: false });
     }
-    e.hp -= total;
-    b.skillTimer = sk.cooldown;
-    emit({ t: "skill", skillId: sk.id, fx: sk.fx, hits: sk.hits, dmg: total, crit: anyCrit });
+  } else if (c.pending) {
+    const pending = c.pending;
+    pending.next -= dt;
+    while (pending.next <= 1e-8 && pending.left > 0 && e.hp > 0) {
+      c.showcase = false;
+      const crit = rng.next() < st.crit;
+      const dmg = st.atk * pending.mult * (crit ? st.critDmg : 1);
+      e.hp -= dmg;
+      emit({ t: "skill", skillId: sk.id, fx: sk.fx, hits: pending.hits, dmg, crit,
+        hitIndex: pending.hits - pending.left, empowered: pending.empowered });
+      pending.left--;
+      pending.next += SKILL_TIMING[sk.id].interval;
+    }
+    if (pending.left === 0 || e.hp <= 0) c.pending = null;
   }
 
   // Kuro claw: auto when unlocked & switch on
-  if (k.auto && k.level >= KURO.autoCastLevel && k.strikeCd <= 0 && e.hp > 0) kuroStrike(state, st, rng, emit, true);
+  if (!c.showcase && k.auto && k.level >= KURO.autoCastLevel && k.strikeCd <= 0 && e.hp > 0) kuroStrike(state, st, rng, emit, true);
 
   if (e.hp <= 0) {
     onKill(state, st, rng, emit);
@@ -73,11 +104,25 @@ export function tick(state: GameState, dt: number, rng: Rng, emit: Emit = noEmit
   // enemy attack
   b.enemyAtkTimer += dt;
   const eInt = 1 / e.aps;
-  while (b.enemyAtkTimer >= eInt) {
+  while (b.enemyAtkTimer >= eInt && e.hp > 0 && b.heroHp > 0) {
     b.enemyAtkTimer -= eInt;
-    const dmg = e.atk * (1 - st.def) * (0.9 + rng.next() * 0.2);
+    let dmg = e.atk * (1 - st.def) * (0.9 + rng.next() * 0.2);
+    const absorbed = Math.min(c.shield, dmg);
+    if (absorbed > 0) {
+      c.shield -= absorbed;
+      dmg -= absorbed;
+      emit({ t: "ward", amount: absorbed, blocked: true });
+      const counter = Math.min(st.atk * 3, absorbed * mechanic.counterScale);
+      e.hp -= counter;
+      emit({ t: "proc", kind: "counter", dmg: counter, crit: false });
+    }
     b.heroHp -= dmg;
     emit({ t: "enemyHit", dmg });
+  }
+
+  if (e.hp <= 0) {
+    onKill(state, st, rng, emit);
+    return;
   }
 
   if (b.heroHp <= 0) {
@@ -124,6 +169,7 @@ function spawnNext(state: GameState, st: HeroStats, rng: Rng, emit: Emit) {
 function setEnemy(state: GameState, enemy: GameState["battle"]["enemy"]) {
   const b = state.battle;
   b.enemy = enemy;
+  b.combat.pending = null;
   b.heroAtkTimer = 0.35; // first swing come quick
   b.enemyAtkTimer = 0;
 }
@@ -143,6 +189,7 @@ function onKill(state: GameState, st: HeroStats, rng: Rng, emit: Emit) {
   const b = state.battle;
   const e = b.enemy!;
   b.enemy = null;
+  b.combat.pending = null;
   b.spawnTimer = BALANCE.spawnDelay;
 
   const gold = killGold(e.level, e.kind) * st.goldMult;
@@ -198,6 +245,7 @@ function bossFail(state: GameState, st: HeroStats, reason: "dead" | "timeout", e
   state.bossReady = false;
   state.kills = 0;
   b.enemy = null;
+  b.combat.pending = null;
   b.spawnTimer = 1.2;
   b.heroHp = st.maxHp;
   emit({ t: "bossFail", reason });
@@ -210,6 +258,7 @@ function retreat(state: GameState, st: HeroStats, emit: Emit) {
   state.kills = 0;
   state.bossReady = false;
   b.enemy = null;
+  b.combat.pending = null;
   b.spawnTimer = 1.5;
   b.heroHp = st.maxHp;
   emit({ t: "heroDown", retreatTo: state.stage });

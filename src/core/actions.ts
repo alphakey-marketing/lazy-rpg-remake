@@ -2,15 +2,16 @@ import {
   CORRUPTION, DAILY_ALL_CLAIMED_BONUS, DAILY_QUESTS, DailyQuestId, GEM_SHOP, KURO, LOGIN_REWARDS,
   PerkId, Rarity, REBIRTH, REBIRTH_PERKS, REFINE, TrainingId,
 } from "../config/balance";
-import { JOBS, JobId, Slot } from "../config/content";
+import { JOBS, JobId, Slot, SPECIALIZATIONS, SpecializationId } from "../config/content";
 import { bumpDaily, dayKey, ensureDaily } from "./daily";
 import { trainingCost, trainingMaxed } from "./formulas";
 import { rarityIndex, salvageValue } from "./items";
-import { newGame } from "./newGame";
+import { freshCombat, newGame } from "./newGame";
 import type { Rng } from "./rng";
 import { Emit, estimateGoldPerSec, kuroStrike, noEmit, startBoss } from "./sim";
 import { computeStats, powerWith } from "./stats";
 import type { GameState, Item } from "./types";
+import { syncAchievements } from "./achievements";
 
 // ── Boss ─────────────────────────────────────────────────────────────
 export function challengeBoss(state: GameState, rng: Rng, emit: Emit = noEmit): boolean {
@@ -138,8 +139,40 @@ export function canChangeJob(state: GameState, job: JobId): boolean {
 
 export function changeJob(state: GameState, job: JobId): boolean {
   if (!canChangeJob(state, job)) return false;
+  const oldMax = computeStats(state).maxHp;
+  const hpRatio = state.battle.heroHp < 0 ? 1 : Math.max(0, state.battle.heroHp / oldMax);
   state.job = job;
-  state.battle.skillTimer = 1;
+  state.specialization = null;
+  state.battle.heroHp = hpRatio * computeStats(state).maxHp;
+  state.battle.combat = freshCombat();
+  state.battle.combat.showcase = true;
+  state.battle.skillTimer = 2.2;
+  return true;
+}
+
+export function specializationReady(state: GameState): boolean {
+  return JOBS[state.job].tier === 2 && state.specialization === null;
+}
+
+export function chooseSpecialization(state: GameState, id: SpecializationId): boolean {
+  if (!specializationReady(state) || SPECIALIZATIONS[id]?.job !== state.job) return false;
+  state.specialization = id;
+  return true;
+}
+
+export function canRespecJob(state: GameState, job: JobId): boolean {
+  return !state.jobRespecUsed && !state.inBoss && JOBS[state.job].tier === 1 && JOBS[job]?.tier === 1 && job !== state.job;
+}
+
+export function respecJob(state: GameState, job: JobId): boolean {
+  if (!canRespecJob(state, job)) return false;
+  const hpRatio = state.battle.heroHp < 0 ? 1 : Math.max(0, state.battle.heroHp) / computeStats(state).maxHp;
+  state.job = job;
+  state.specialization = null;
+  state.jobRespecUsed = true;
+  state.battle.combat = freshCombat();
+  // Preserve cooldown and health ratio: changing route cannot refill combat resources.
+  state.battle.heroHp = hpRatio * computeStats(state).maxHp;
   return true;
 }
 
@@ -166,6 +199,7 @@ export function canRebirth(state: GameState): boolean {
 
 export function rebirth(state: GameState, now: number): number {
   if (!canRebirth(state)) return 0;
+  syncAchievements(state);
   const gained = rebirthShards(state);
   const fresh = newGame(now, state.seed);
   // keep meta: currency, perks, settings, life, daily, login, bestiary
@@ -180,6 +214,9 @@ export function rebirth(state: GameState, now: number): number {
     daily: state.daily,
     login: state.login,
     bestiary: state.bestiary,
+    achievements: state.achievements,
+    jobRespecUsed: state.jobRespecUsed,
+    tower: state.tower,
     kuro: { ...state.kuro, strikeCd: 0 },
     nextItemId: state.nextItemId,
     createdAt: state.createdAt,
@@ -187,6 +224,7 @@ export function rebirth(state: GameState, now: number): number {
     corruption: 0,
   };
   Object.assign(state, fresh, keep);
+  syncAchievements(state);
   // head start, but never past half of old best (fresh hero too weak)
   const prevBest = keep.life!.bestStage;
   const start = Math.max(1, Math.min(1 + state.perks.headStart * REBIRTH_PERKS.headStart.perLevel, Math.floor(prevBest * 0.5)));

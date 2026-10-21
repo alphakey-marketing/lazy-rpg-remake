@@ -31,7 +31,7 @@ export const JOB_NAME: Record<JobId, string> = {
 export const JOB_DESC: Record<JobId, string> = {
   novice: "乜都識少少",
   blade: "高血高防，旋風斬連擊三下",
-  arcanist: "攻擊力最高，隕石一擊必殺",
+  arcanist: "普攻儲法力，滿格隕石重爆",
   ranger: "攻速暴擊高，箭雨五連射",
   paladin: "鐵壁聖騎，審判四連擊",
   archmage: "毀天滅地，新星爆發",

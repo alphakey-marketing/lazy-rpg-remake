@@ -1,5 +1,6 @@
 import type { Rarity, TrainingId, PerkId, DailyQuestId } from "../config/balance";
-import type { FamilyId, JobId, Slot, SubStatId } from "../config/content";
+import type { FamilyId, JobId, Slot, SubStatId, SpecializationId } from "../config/content";
+import type { AchievementId } from "../config/achievements";
 
 export interface SubStat {
   id: SubStatId;
@@ -38,6 +39,14 @@ export interface Battle {
   enemyAtkTimer: number;
   skillTimer: number; // count down to next skill
   bossTimer: number; // remain sec in boss fight
+  combat: {
+    mana: number;
+    combo: number;
+    shield: number;
+    shieldLeft: number;
+    showcase: boolean;
+    pending: null | { next: number; left: number; hits: number; mult: number; empowered: boolean };
+  };
 }
 
 export interface DailyState {
@@ -92,6 +101,8 @@ export interface GameState {
   level: number;
   exp: number;
   job: JobId;
+  specialization: SpecializationId | null;
+  jobRespecUsed: boolean;
 
   stage: number;
   maxStage: number; // this run
@@ -118,6 +129,12 @@ export interface GameState {
   settings: Settings;
   life: Lifetime;
   bestiary: Partial<Record<FamilyId, number>>;
+  achievements: { unlocked: AchievementId[]; claimed: AchievementId[] };
+
+  tower: {
+    highestFloor: number;
+    dailyClaimDay: string | null;
+  };
 
   kuro: KuroState;
   battle: Battle;
@@ -127,7 +144,10 @@ export interface GameState {
 // ── Events: sim emit, renderer & UI consume. Offline mode just count. ──
 export type SimEvent =
   | { t: "heroHit"; dmg: number; crit: boolean }
-  | { t: "skill"; skillId: string; fx: string; hits: number; dmg: number; crit: boolean }
+  | { t: "skill"; skillId: string; fx: string; hits: number; dmg: number; crit: boolean; hitIndex?: number; empowered?: boolean }
+  | { t: "skillCast"; skillId: string; fx: string; hits: number; empowered: boolean }
+  | { t: "ward"; amount: number; blocked: boolean }
+  | { t: "proc"; kind: "counter" | "pursuit"; dmg: number; crit: boolean }
   | { t: "enemyHit"; dmg: number }
   | { t: "spawn"; enemy: Enemy }
   | { t: "kill"; enemy: Enemy; gold: number; exp: number }

@@ -1,5 +1,6 @@
 import { newGame, SAVE_VERSION } from "./newGame";
 import type { GameState } from "./types";
+import { syncAchievements } from "./achievements";
 
 // Fill missing field from fresh default (deep for plain object). Old save never break.
 function fill<T>(def: T, got: any): T {
@@ -16,9 +17,16 @@ function fill<T>(def: T, got: any): T {
 const MIGRATIONS: Record<number, (s: any) => any> = {
   // 1 → 2: add kuro. default fill do the work, nothing to move.
   1: (s) => s,
+  // 2 → 3: permanent tower progress; deep defaults preserve existing saves.
+  2: (s) => s,
+  // 3 → 4: achievement completion and one-time claims, no existing data moved.
+  3: (s) => s,
+  // 4 ? 5: combat identity, one-time respec, and unselected tier-2 specializations.
+  4: (s) => s,
 };
 
 export function serialize(state: GameState): string {
+  syncAchievements(state);
   return JSON.stringify(state);
 }
 
@@ -32,6 +40,7 @@ export function deserialize(json: string, now: number): GameState {
   }
   raw.version = SAVE_VERSION;
   const s = fill(newGame(now, raw.seed ?? 1), raw);
+  syncAchievements(s);
   // gear slot may be null — fill keep null ok
   return s;
 }

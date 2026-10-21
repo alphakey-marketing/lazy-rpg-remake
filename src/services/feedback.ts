@@ -45,6 +45,12 @@ function tone(freq: number, dur: number, type: OscillatorType, vol: number, slid
 }
 
 export const sfx = {
+  skill(fx: string) {
+    if (!gate("skill", 90)) return;
+    if (fx === "meteor" || fx === "nova") tone(95, .24, "sawtooth", .055, -45);
+    else if (fx === "volley" || fx === "pierce") tone(850, .07, "triangle", .035, -500);
+    else tone(230, .1, "square", .035, -150);
+  },
   hit(crit: boolean) {
     if (!gate("hit", 70)) return;
     crit ? tone(520, 0.12, "square", 0.05, -300) : tone(260, 0.06, "triangle", 0.05, -120);
